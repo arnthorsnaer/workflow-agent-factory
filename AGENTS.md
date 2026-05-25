@@ -33,7 +33,7 @@ The only useful distinction is whether each dependency is owned by the repo or e
 - Evidence/archive data is ignored by default because it may contain private paths, titles, URLs, release names, or decisions.
 - Generated agents should commit only workflow instructions, internal tooling, templates, checked-in profiles/configs, and sanitized examples.
 - Preserve user-created source agents unless explicitly replacing them after approval.
-- Avoid multiple sources of truth. If a value is user-editable, store it in exactly one settings file and reference that file/key everywhere else, e.g. `settings/paths.json:movieLibrary`.
+- Avoid multiple sources of truth. If a value is user-editable, store it in exactly one settings file and reference that file/key everywhere else, e.g. `settings.json:paths.movieLibrary`.
 - Do not duplicate editable setting values in generated docs, generated manifests, scripts, or examples unless the target file is the source-of-truth settings file itself.
 
 ## Standard workflow
@@ -83,4 +83,4 @@ After successful external publish, cleanup should remove/trash processing files 
 ## Current example specs
 
 - `examples/video-fetcher-agent.json` — external processing in `~/Downloads/incoming/`, local ignored evidence only.
-- `examples/stl-to-gcode-agent.json` — internal `projects/<id>/todo|in-process|done` processing, copied internal tools under `app/commands`/`app/lib`, and committed non-secret settings under `settings/prusa-slicer`.
+- `examples/stl-to-gcode-agent.json` — internal `projects/<id>/todo|in-process|done` processing, copied internal tools under `app/commands`/`app/lib`, root `settings.json`, and committed PrusaSlicer config under `tool-config/prusa-slicer`.
