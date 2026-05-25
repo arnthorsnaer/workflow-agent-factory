@@ -47,6 +47,11 @@ function processing(spec: WorkflowAgentSpec): string {
   return `## Processing model\n\n- Project root: \`${p.projectRoot ?? 'projects'}\`\n- Archive root: \`${p.archiveRoot ?? 'archive'}\`\n- Files being processed location: **${p.filesBeingProcessed.location}**\n- Never commit files being processed: **${p.filesBeingProcessed.neverCommit ? 'yes' : 'no'}**\n\n### Internal processing stages\n\n${p.filesBeingProcessed.internalStages?.length ? p.filesBeingProcessed.internalStages.map((stage) => `- \`${stage}/\``).join('\n') : '- None declared'}\n\n### External processing paths\n\n${p.filesBeingProcessed.externalPaths?.length ? p.filesBeingProcessed.externalPaths.map((path) => `- \`${path}\``).join('\n') : '- None declared'}\n\n### Evidence\n\n- Enabled: **${p.evidence?.enabled ? 'yes' : 'no'}**\n- Commit policy: ${p.evidence?.commitPolicy ?? 'ignored by default'}\n- Archive after completion: **${p.evidence?.archiveAfterCompletion ? 'yes' : 'no'}**\n\nEvidence files:\n\n${evidenceFiles}\n\n### Cleanup\n\n- After publish: **${p.cleanup?.afterPublish ? 'yes' : 'no'}**\n- Remove/trash processing files: **${p.cleanup?.removeOrTrashProcessingFiles ? 'yes' : 'no'}**\n- Preserve evidence only: **${p.cleanup?.preserveEvidenceOnly ? 'yes' : 'no'}**\n`;
 }
 
+function customSections(spec: WorkflowAgentSpec): string {
+  if (!spec.customSections?.length) return '';
+  return spec.customSections.map((section) => `## ${section.title}\n\n${section.content.trim()}\n`).join('\n');
+}
+
 function startupCheck(spec: WorkflowAgentSpec): string {
   const d = spec.dependencies;
   const checks = [
@@ -65,11 +70,11 @@ function startupCheck(spec: WorkflowAgentSpec): string {
 }
 
 export function renderAgents(spec: WorkflowAgentSpec): string {
-  return `# ${spec.name} — Agent Operating Guide\n\n${spec.description}\n\n## Mission\n\n${list(spec.mission)}\n${dependencySections(spec)}\n${startupCheck(spec)}\n${processing(spec)}\n## Hard boundaries\n\n${list(spec.hardBoundaries)}\n## Standard workflow\n\n${list(spec.standardWorkflow)}\n## Fallback workflow\n\n${list(spec.fallbackWorkflow)}\n## Safety rules\n\n${list(spec.safetyRules)}\n## Known limitations\n\n${list(spec.knownLimitations)}\n## Git and credential policy\n\n- Never commit credentials, tokens, API keys, cookies, service config, or environment files.\n- Never commit files being processed.\n- Evidence and archive data are ignored by default because they may contain private paths, names, URLs, or decisions.\n- Commit only workflow instructions, internal tooling, templates, checked-in profiles/configs, and sanitized examples.\n`;
+  return `# ${spec.name} — Agent Operating Guide\n\n${spec.description}\n\n## Mission\n\n${list(spec.mission)}\n${dependencySections(spec)}\n${startupCheck(spec)}\n${processing(spec)}\n${customSections(spec)}\n## Hard boundaries\n\n${list(spec.hardBoundaries)}\n## Standard workflow\n\n${list(spec.standardWorkflow)}\n## Fallback workflow\n\n${list(spec.fallbackWorkflow)}\n## Safety rules\n\n${list(spec.safetyRules)}\n## Known limitations\n\n${list(spec.knownLimitations)}\n## Git and credential policy\n\n- Never commit credentials, tokens, API keys, cookies, service config, or environment files.\n- Never commit files being processed.\n- Evidence and archive data are ignored by default because they may contain private paths, names, URLs, or decisions.\n- Commit only workflow instructions, internal tooling, templates, checked-in profiles/configs, and sanitized examples.\n`;
 }
 
 export function renderReadme(spec: WorkflowAgentSpec): string {
-  return `# ${spec.name}\n\n${spec.description}\n\n## Quick start\n\n1. Read \`AGENTS.md\`.\n2. Run the startup dependency check.\n3. Confirm required external tools, internal tools, services, config, environment variables, and paths.\n4. Process work through the declared workflow.\n5. Publish outputs to the external destination, clean processing files, and preserve evidence only.\n\n${dependencySections(spec)}\n${processing(spec)}\n## Internal commands\n\n${spec.dependencies.internalTools?.length ? spec.dependencies.internalTools.map((tool) => `- \`${tool.command}\` — ${tool.purpose}`).join('\n') : '- None declared.'}\n\n## Doctor\n\nIf generated, run:\n\n\`\`\`bash\nscripts/doctor.sh\n\`\`\`\n`;
+  return `# ${spec.name}\n\n${spec.description}\n\n## Quick start\n\n1. Read \`AGENTS.md\`.\n2. Run the startup dependency check.\n3. Confirm required external tools, internal tools, services, config, environment variables, and paths.\n4. Process work through the declared workflow.\n5. Publish outputs to the external destination, clean processing files, and preserve evidence only.\n\n${dependencySections(spec)}\n${processing(spec)}\n${customSections(spec)}\n## Internal commands\n\n${spec.dependencies.internalTools?.length ? spec.dependencies.internalTools.map((tool) => `- \`${tool.command}\` — ${tool.purpose}`).join('\n') : '- None declared.'}\n\n## Doctor\n\nIf generated, run:\n\n\`\`\`bash\nscripts/doctor.sh\n\`\`\`\n`;
 }
 
 export function renderGitignore(spec: WorkflowAgentSpec): string {

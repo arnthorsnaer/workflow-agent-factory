@@ -45,6 +45,8 @@ export type CopySpec = { from: string; to: string };
 export type FileSpec = { path: string; content?: string; json?: unknown };
 export type ReplacementSpec = { file: string; oldText: string; newText: string };
 
+export type SectionSpec = { title: string; content: string };
+
 export type WorkflowAgentSpec = {
   name: string;
   description: string;
@@ -65,6 +67,7 @@ export type WorkflowAgentSpec = {
   fallbackWorkflow?: string[];
   safetyRules?: string[];
   knownLimitations?: string[];
+  customSections?: SectionSpec[];
   git?: {
     visibility?: 'public' | 'private';
     extraIgnore?: string[];

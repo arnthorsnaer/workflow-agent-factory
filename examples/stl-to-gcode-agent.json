@@ -9,42 +9,142 @@
   ],
   "dependencies": {
     "externalTools": [
-      { "name": "bun", "purpose": "Run internal scripts.", "required": true, "verify": "bun --version" },
-      { "name": "unzip", "purpose": "List and extract ZIP model archives safely.", "required": true, "verify": "unzip -v" },
-      { "name": "PrusaSlicer CLI", "purpose": "Slice STL to G-code.", "required": true, "verifyAny": [
-        { "name": "PATH", "command": "prusa-slicer --help" },
-        { "name": "PRUSA_SLICER_BIN", "command": "test -n \"$PRUSA_SLICER_BIN\" && \"$PRUSA_SLICER_BIN\" --help" },
-        { "name": "macOS app default", "command": "test -x /Applications/PrusaSlicer.app/Contents/MacOS/PrusaSlicer && /Applications/PrusaSlicer.app/Contents/MacOS/PrusaSlicer --help" }
-      ], "notes": "Supply PrusaSlicer either on PATH as prusa-slicer, via PRUSA_SLICER_BIN, or with --prusa-slicer when running slice/convert." },
-      { "name": "agent-browser", "purpose": "Optional Thingiverse browser fallback when direct ZIP download fails.", "required": false, "verify": "agent-browser --help" }
+      {
+        "name": "bun",
+        "purpose": "Run internal scripts.",
+        "required": true,
+        "verify": "bun --version"
+      },
+      {
+        "name": "unzip",
+        "purpose": "List and extract ZIP model archives safely.",
+        "required": true,
+        "verify": "unzip -v"
+      },
+      {
+        "name": "PrusaSlicer CLI",
+        "purpose": "Slice STL to G-code.",
+        "required": true,
+        "verifyAny": [
+          {
+            "name": "PATH",
+            "command": "prusa-slicer --help"
+          },
+          {
+            "name": "PRUSA_SLICER_BIN",
+            "command": "test -n \"$PRUSA_SLICER_BIN\" && \"$PRUSA_SLICER_BIN\" --help"
+          },
+          {
+            "name": "macOS app default",
+            "command": "test -x /Applications/PrusaSlicer.app/Contents/MacOS/PrusaSlicer && /Applications/PrusaSlicer.app/Contents/MacOS/PrusaSlicer --help"
+          }
+        ],
+        "notes": "Supply PrusaSlicer either on PATH as prusa-slicer, via PRUSA_SLICER_BIN, or with --prusa-slicer when running slice/convert."
+      },
+      {
+        "name": "agent-browser",
+        "purpose": "Optional Thingiverse browser fallback when direct ZIP download fails.",
+        "required": false,
+        "verify": "agent-browser --help"
+      }
     ],
     "internalTools": [
-      { "name": "convert", "command": "bun run convert <source>", "purpose": "One-shot import, list, slice, and preview." },
-      { "name": "import", "command": "bun run import <source>", "purpose": "Import/download/extract/discover STL files." },
-      { "name": "list", "command": "bun run list <id>", "purpose": "List discovered STL files and printable status." },
-      { "name": "slice", "command": "bun run slice <id>", "purpose": "Slice one selected STL using an approved profile." },
-      { "name": "preview", "command": "bun run preview <id>", "purpose": "Regenerate SVG previews from G-code." }
+      {
+        "name": "convert",
+        "command": "bun run convert <source>",
+        "purpose": "One-shot import, list, slice, and preview."
+      },
+      {
+        "name": "import",
+        "command": "bun run import <source>",
+        "purpose": "Import/download/extract/discover STL files."
+      },
+      {
+        "name": "list",
+        "command": "bun run list <id>",
+        "purpose": "List discovered STL files and printable status."
+      },
+      {
+        "name": "slice",
+        "command": "bun run slice <id>",
+        "purpose": "Slice one selected STL using an approved profile."
+      },
+      {
+        "name": "preview",
+        "command": "bun run preview <id>",
+        "purpose": "Regenerate SVG previews from G-code."
+      }
     ],
     "services": [],
     "localConfig": [],
     "environmentVariables": [
-      { "name": "PRUSA_SLICER_BIN", "purpose": "Optional override for PrusaSlicer binary path.", "required": false, "containsSecrets": false }
+      {
+        "name": "PRUSA_SLICER_BIN",
+        "purpose": "Optional override for PrusaSlicer binary path.",
+        "required": false,
+        "containsSecrets": false
+      }
     ],
     "filesystemPaths": [
-      { "path": "projects/", "purpose": "Internal ignored processing workspace.", "required": true, "gitPolicy": "tracked only as .gitkeep; processing contents ignored" },
-      { "path": "projects/archive/", "purpose": "Ignored local evidence archive.", "required": true, "gitPolicy": "tracked only as .gitkeep; contents ignored" },
-      { "path": "settings/prusa-slicer/ender3-v2-neo/", "purpose": "Checked-in approved PrusaSlicer profiles.", "required": true, "gitPolicy": "tracked" },
-      { "path": "/Volumes/3D_PRINTS", "purpose": "Optional already-mounted external G-code destination.", "required": false, "gitPolicy": "external; do not manage mount" }
+      {
+        "path": "projects/",
+        "purpose": "Internal ignored processing workspace.",
+        "required": true,
+        "gitPolicy": "tracked only as .gitkeep; processing contents ignored"
+      },
+      {
+        "path": "projects/archive/",
+        "purpose": "Ignored local evidence archive.",
+        "required": true,
+        "gitPolicy": "tracked only as .gitkeep; contents ignored"
+      },
+      {
+        "path": "settings/prusa-slicer/ender3-v2-neo/",
+        "purpose": "Checked-in approved PrusaSlicer profiles.",
+        "required": true,
+        "gitPolicy": "tracked"
+      },
+      {
+        "path": "/Volumes/3D_PRINTS",
+        "purpose": "Optional already-mounted external G-code destination.",
+        "required": false,
+        "gitPolicy": "external; do not manage mount"
+      }
     ],
     "trackedAssets": [
-      { "path": "settings/prusa-slicer/ender3-v2-neo/*.ini", "purpose": "Approved printer/material profiles.", "required": true, "gitPolicy": "tracked" }
+      {
+        "path": "settings/prusa-slicer/ender3-v2-neo/*.ini",
+        "purpose": "Approved printer/material profiles.",
+        "required": true,
+        "gitPolicy": "tracked"
+      }
     ],
     "generatedArtifacts": [
-      { "path": "projects/*/todo/", "purpose": "Raw imported model files.", "gitPolicy": "ignored" },
-      { "path": "projects/*/in-process/", "purpose": "Extracted/intermediate model files and metadata.", "gitPolicy": "ignored" },
-      { "path": "projects/*/done/", "purpose": "Generated G-code and previews before external publish.", "gitPolicy": "ignored" },
-      { "path": "projects/*/evidence/", "purpose": "Local job evidence, ignored because it can contain private paths/source URLs.", "gitPolicy": "ignored" },
-      { "path": "projects/archive/*", "purpose": "Archived local evidence after cleanup.", "gitPolicy": "ignored" }
+      {
+        "path": "projects/*/todo/",
+        "purpose": "Raw imported model files.",
+        "gitPolicy": "ignored"
+      },
+      {
+        "path": "projects/*/in-process/",
+        "purpose": "Extracted/intermediate model files and metadata.",
+        "gitPolicy": "ignored"
+      },
+      {
+        "path": "projects/*/done/",
+        "purpose": "Generated G-code and previews before external publish.",
+        "gitPolicy": "ignored"
+      },
+      {
+        "path": "projects/*/evidence/",
+        "purpose": "Local job evidence, ignored because it can contain private paths/source URLs.",
+        "gitPolicy": "ignored"
+      },
+      {
+        "path": "projects/archive/*",
+        "purpose": "Archived local evidence after cleanup.",
+        "gitPolicy": "ignored"
+      }
     ]
   },
   "processing": {
@@ -52,14 +152,24 @@
     "archiveRoot": "projects/archive",
     "filesBeingProcessed": {
       "location": "internal",
-      "internalStages": ["todo", "in-process", "done"],
+      "internalStages": [
+        "todo",
+        "in-process",
+        "done"
+      ],
       "neverCommit": true
     },
     "evidence": {
       "enabled": true,
       "commitPolicy": "ignored by default",
       "archiveAfterCompletion": true,
-      "files": ["manifest.json", "events.log", "decisions.md", "outputs.json", "cleanup.json"]
+      "files": [
+        "manifest.json",
+        "events.log",
+        "decisions.md",
+        "outputs.json",
+        "cleanup.json"
+      ]
     },
     "cleanup": {
       "afterPublish": true,
@@ -99,20 +209,66 @@
   ],
   "scaffold": {
     "copy": [
-      { "from": "../../stl-to-gcode-agent/app/lib", "to": "app/lib" },
-      { "from": "../../stl-to-gcode-agent/app/scripts", "to": "app/commands" },
-      { "from": "../../stl-to-gcode-agent/profiles/ender3-v2-neo", "to": "settings/prusa-slicer/ender3-v2-neo" },
-      { "from": "../../stl-to-gcode-agent/package.json", "to": "package.json" },
-      { "from": "../../stl-to-gcode-agent/package-lock.json", "to": "package-lock.json" }
+      {
+        "from": "../../stl-to-gcode-agent/app/lib",
+        "to": "app/lib"
+      },
+      {
+        "from": "../../stl-to-gcode-agent/app/scripts",
+        "to": "app/commands"
+      },
+      {
+        "from": "../../stl-to-gcode-agent/profiles/ender3-v2-neo",
+        "to": "settings/prusa-slicer/ender3-v2-neo"
+      },
+      {
+        "from": "../../stl-to-gcode-agent/package.json",
+        "to": "package.json"
+      },
+      {
+        "from": "../../stl-to-gcode-agent/package-lock.json",
+        "to": "package-lock.json"
+      }
     ],
-    "createDirs": ["projects", "projects/archive", "settings"],
+    "createDirs": [
+      "projects",
+      "projects/archive",
+      "settings"
+    ],
     "replacements": [
-      { "file": "app/lib/paths.ts", "oldText": "export const profilesRoot = path.join(root, 'profiles', 'ender3-v2-neo');", "newText": "export const profilesRoot = path.join(root, 'settings', 'prusa-slicer', 'ender3-v2-neo');" },
-      { "file": "package.json", "oldText": "app/scripts/", "newText": "app/commands/" }
+      {
+        "file": "app/lib/paths.ts",
+        "oldText": "export const profilesRoot = path.join(root, 'profiles', 'ender3-v2-neo');",
+        "newText": "export const profilesRoot = path.join(root, 'settings', 'prusa-slicer', 'ender3-v2-neo');"
+      },
+      {
+        "file": "package.json",
+        "oldText": "app/scripts/",
+        "newText": "app/commands/"
+      }
     ]
   },
   "git": {
     "visibility": "public",
-    "extraIgnore": ["*.gcode", "*.stl", "*.3mf", "*.zip"]
-  }
+    "extraIgnore": [
+      "*.gcode",
+      "*.stl",
+      "*.3mf",
+      "*.zip"
+    ]
+  },
+  "customSections": [
+    {
+      "title": "STL workflow details",
+      "content": "Prefer the one-shot command:\n\n```bash\nbun run convert <source>\nbun run convert <source> --stl <index>\nbun run convert <source> --profile pla-fine\n```\n\nIf PrusaSlicer is not on PATH, supply it with either `PRUSA_SLICER_BIN` or `--prusa-slicer /path/to/prusa-slicer`.\n\nIf multiple printable STLs are found, do not guess. Show the list to the user and ask which STL index to use.\n\nAfter a successful slice, report the G-code and preview paths under `projects/<id>/done/`. If the external destination is already available, copy only the final G-code there; do not mount or manage removable media."
+    },
+    {
+      "title": "IDs, settings, and validation",
+      "content": "IDs are intentionally simple:\n\n- Thingiverse URL: `<model-name>-thing-<number>`\n- Local file: sanitized filename without extension\n- Other URL: sanitized URL basename plus a short hash\n\nChecked-in non-secret slicer settings live under `settings/prusa-slicer/ender3-v2-neo/`. Do not duplicate profile paths elsewhere as editable values.\n\nThe scripts validate STL discovery, ASCII/binary STL parseability, non-empty geometry, build-volume fit, and safe ZIP paths before extraction."
+    },
+    {
+      "title": "Thingiverse behavior",
+      "content": "Thingiverse support is best-effort via the direct ZIP endpoint first. If that returns HTML instead of a ZIP, the importer may fall back to `agent-browser` to click the visible STL download button. If both approaches fail, ask the user to manually download the ZIP/STL and rerun `bun run convert <downloaded-file>`."
+    }
+  ]
 }
