@@ -99,7 +99,7 @@
         "gitPolicy": "tracked only as .gitkeep; contents ignored"
       },
       {
-        "path": "settings/prusa-slicer/ender3-v2-neo/",
+        "path": "settings.json:slicer.profileRoot",
         "purpose": "Checked-in approved PrusaSlicer profiles.",
         "required": true,
         "gitPolicy": "tracked"
@@ -113,8 +113,20 @@
     ],
     "trackedAssets": [
       {
-        "path": "settings/prusa-slicer/ender3-v2-neo/*.ini",
-        "purpose": "Approved printer/material profiles.",
+        "path": "settings.json",
+        "purpose": "Editable non-secret workflow settings.",
+        "required": true,
+        "gitPolicy": "tracked"
+      },
+      {
+        "path": ".env.example",
+        "purpose": "Example optional environment variables without values.",
+        "required": true,
+        "gitPolicy": "tracked example only"
+      },
+      {
+        "path": "tool-config/prusa-slicer/ender3-v2-neo/*.ini",
+        "purpose": "Approved PrusaSlicer tool config profiles.",
         "required": true,
         "gitPolicy": "tracked"
       }
@@ -219,7 +231,7 @@
       },
       {
         "from": "../../stl-to-gcode-agent/profiles/ender3-v2-neo",
-        "to": "settings/prusa-slicer/ender3-v2-neo"
+        "to": "tool-config/prusa-slicer/ender3-v2-neo"
       },
       {
         "from": "../../stl-to-gcode-agent/package.json",
@@ -233,18 +245,46 @@
     "createDirs": [
       "projects",
       "projects/archive",
-      "settings"
+      "tool-config"
     ],
     "replacements": [
       {
         "file": "app/lib/paths.ts",
-        "oldText": "export const profilesRoot = path.join(root, 'profiles', 'ender3-v2-neo');",
-        "newText": "export const profilesRoot = path.join(root, 'settings', 'prusa-slicer', 'ender3-v2-neo');"
+        "oldText": "import path from 'node:path';\n\nexport const root = path.resolve(import.meta.dir, '..', '..');\nexport const projectsRoot = path.join(root, 'projects');\nexport const profilesRoot = path.join(root, 'profiles', 'ender3-v2-neo');",
+        "newText": "import fs from 'node:fs';\nimport path from 'node:path';\n\nexport const root = path.resolve(import.meta.dir, '..', '..');\nconst settings = JSON.parse(fs.readFileSync(path.join(root, 'settings.json'), 'utf8')) as { slicer?: { profileRoot?: string } };\nif (!settings.slicer?.profileRoot) throw new Error('missing settings.json:slicer.profileRoot');\nexport const projectsRoot = path.join(root, 'projects');\nexport const profilesRoot = path.join(root, settings.slicer.profileRoot);"
       },
       {
         "file": "package.json",
         "oldText": "app/scripts/",
         "newText": "app/commands/"
+      }
+    ],
+    "files": [
+      {
+        "path": "settings.json",
+        "json": {
+          "printer": {
+            "name": "Creality Ender-3 V2 Neo",
+            "buildVolume": {
+              "x": 220,
+              "y": 220,
+              "z": 250
+            }
+          },
+          "slicer": {
+            "tool": "PrusaSlicer",
+            "defaultProfile": "pla-normal",
+            "profileRoot": "tool-config/prusa-slicer/ender3-v2-neo",
+            "binaryEnv": "PRUSA_SLICER_BIN"
+          },
+          "externalDestinations": {
+            "sdCardVolume": "/Volumes/3D_PRINTS"
+          }
+        }
+      },
+      {
+        "path": ".env.example",
+        "content": "# Optional: path to PrusaSlicer if it is not available as prusa-slicer.\nPRUSA_SLICER_BIN=\n"
       }
     ]
   },
@@ -264,11 +304,19 @@
     },
     {
       "title": "IDs, settings, and validation",
-      "content": "IDs are intentionally simple:\n\n- Thingiverse URL: `<model-name>-thing-<number>`\n- Local file: sanitized filename without extension\n- Other URL: sanitized URL basename plus a short hash\n\nChecked-in non-secret slicer settings live under `settings/prusa-slicer/ender3-v2-neo/`. Do not duplicate profile paths elsewhere as editable values.\n\nThe scripts validate STL discovery, ASCII/binary STL parseability, non-empty geometry, build-volume fit, and safe ZIP paths before extraction."
+      "content": "IDs are intentionally simple:\n\n- Thingiverse URL: `<model-name>-thing-<number>`\n- Local file: sanitized filename without extension\n- Other URL: sanitized URL basename plus a short hash\n\nThe checked-in PrusaSlicer tool config root is defined by `settings.json:slicer.profileRoot`. Do not duplicate that editable path elsewhere.\n\nThe scripts validate STL discovery, ASCII/binary STL parseability, non-empty geometry, build-volume fit, and safe ZIP paths before extraction."
     },
     {
       "title": "Thingiverse behavior",
       "content": "Thingiverse support is best-effort via the direct ZIP endpoint first. If that returns HTML instead of a ZIP, the importer may fall back to `agent-browser` to click the visible STL download button. If both approaches fail, ask the user to manually download the ZIP/STL and rerun `bun run convert <downloaded-file>`."
     }
-  ]
+  ],
+  "doctor": {
+    "pathSettings": [
+      {
+        "file": "settings.json",
+        "objectPath": "slicer"
+      }
+    ]
+  }
 }

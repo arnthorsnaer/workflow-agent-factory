@@ -80,6 +80,7 @@ export type WorkflowAgentSpec = {
   };
   doctor?: {
     pathSettingsFiles?: string[];
+    pathSettings?: Array<{ file: string; objectPath?: string }>;
   };
 };
 

@@ -72,7 +72,7 @@ The factory writes:
 AGENTS.md
 README.md
 .gitignore
-workflow-agent.json
+.factory/workflow-agent.generated.json
 scripts/doctor.sh
 projects/.gitkeep
 projects/archive/.gitkeep
@@ -91,7 +91,7 @@ Generated `.gitignore` files default to credential-safe and processing-safe rule
 
 Evidence is intentionally ignored because it can include private paths, titles, source URLs, release names, or decisions.
 
-Editable settings should be stored only in `settings/` files. Generated docs, manifests, and scripts should reference settings files/keys rather than duplicating the values, so settings do not drift out of sync with `AGENTS.md`, `README.md`, or `workflow-agent.json`.
+Editable settings should be stored only in root-level `settings.json`. Generated docs, manifests, and scripts should reference settings keys rather than duplicating the values, so settings do not drift out of sync with `AGENTS.md`, `README.md`, or `.factory/workflow-agent.generated.json`.
 
 ## Single source of truth rule
 

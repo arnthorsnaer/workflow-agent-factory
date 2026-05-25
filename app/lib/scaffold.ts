@@ -51,7 +51,13 @@ export async function createAgent(spec: WorkflowAgentSpec, options: { outDir: st
   await writeText(path.join(out, 'AGENTS.md'), renderAgents(spec));
   await writeText(path.join(out, 'README.md'), renderReadme(spec));
   await writeText(path.join(out, '.gitignore'), renderGitignore(spec));
-  await writeText(path.join(out, 'workflow-agent.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  const generatedManifest = {
+    _generated: true,
+    _note: 'Generated metadata for traceability only. Do not edit. Runtime/user-editable settings live in settings.json and tool-config/.' ,
+    ...manifest,
+  };
+
+  await writeText(path.join(out, '.factory', 'workflow-agent.generated.json'), `${JSON.stringify(generatedManifest, null, 2)}\n`);
   await writeText(path.join(out, 'scripts', 'doctor.sh'), renderDoctor(spec));
   await fs.chmod(path.join(out, 'scripts', 'doctor.sh'), 0o755);
 }
