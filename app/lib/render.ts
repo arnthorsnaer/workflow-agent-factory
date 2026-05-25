@@ -9,7 +9,7 @@ function list(items: string[] | undefined): string {
   return items.map((item) => `- ${item}`).join('\n') + '\n';
 }
 
-function depTable(items: DependencyItem[] | undefined, columns: Array<'name' | 'path' | 'url' | 'command' | 'purpose' | 'required' | 'verify' | 'secret' | 'git'>): string {
+function depTable(items: DependencyItem[] | undefined, columns: Array<'name' | 'path' | 'url' | 'command' | 'purpose' | 'required' | 'verify' | 'secret' | 'git' | 'notes'>): string {
   if (!items?.length) return 'None declared.\n';
   const header = columns.map(label).join(' | ');
   const sep = columns.map(() => '---').join(' | ');
@@ -18,13 +18,14 @@ function depTable(items: DependencyItem[] | undefined, columns: Array<'name' | '
 }
 
 function label(col: string): string {
-  return ({ name: 'Name', path: 'Path', url: 'URL', command: 'Command', purpose: 'Purpose', required: 'Required', verify: 'Verify', secret: 'Secret?', git: 'Git policy' } as Record<string, string>)[col];
+  return ({ name: 'Name', path: 'Path', url: 'URL', command: 'Command', purpose: 'Purpose', required: 'Required', verify: 'Verify', secret: 'Secret?', git: 'Git policy', notes: 'Notes' } as Record<string, string>)[col];
 }
 
 function cell(item: DependencyItem, col: string): string {
   const raw = col === 'required' ? yn(item.required)
     : col === 'secret' ? yn(item.containsSecrets, false)
     : col === 'git' ? item.gitPolicy
+    : col === 'verify' && item.verifyAny?.length ? item.verifyAny.map((check) => `${check.name}: \`${check.command}\``).join('<br>OR ') || item.verify
     : (item as Record<string, unknown>)[col];
   return String(raw ?? '').replace(/\|/g, '\\|').replace(/\n/g, '<br>') || '-';
 }
@@ -37,7 +38,7 @@ function internalTools(spec: WorkflowAgentSpec): string {
 
 function dependencySections(spec: WorkflowAgentSpec): string {
   const d = spec.dependencies;
-  return `## Dependencies\n\nAll dependencies are explicit. Internal and external tools are both first-class dependencies. Secret-bearing config must come from untracked local files or environment variables.\n\n### External tools\n\n${depTable(d.externalTools, ['name', 'purpose', 'required', 'verify'])}\n### Internal tools\n\n${internalTools(spec)}\n### Services\n\n${depTable(d.services, ['name', 'url', 'purpose', 'required', 'verify'])}\n### Local config\n\n${depTable(d.localConfig, ['path', 'purpose', 'required', 'secret', 'git'])}\n### Environment variables\n\n${depTable(d.environmentVariables, ['name', 'purpose', 'required', 'secret'])}\n### Filesystem paths\n\n${depTable(d.filesystemPaths, ['path', 'purpose', 'required', 'git'])}\n### Tracked assets\n\n${depTable(d.trackedAssets, ['path', 'purpose', 'required', 'git'])}\n### Generated artifacts\n\n${depTable(d.generatedArtifacts, ['path', 'purpose', 'git'])}\n`;
+  return `## Dependencies\n\nAll dependencies are explicit. Internal and external tools are both first-class dependencies. Secret-bearing config must come from untracked local files or environment variables.\n\n### External tools\n\n${depTable(d.externalTools, ['name', 'purpose', 'required', 'verify', 'notes'])}\n### Internal tools\n\n${internalTools(spec)}\n### Services\n\n${depTable(d.services, ['name', 'url', 'purpose', 'required', 'verify'])}\n### Local config\n\n${depTable(d.localConfig, ['path', 'purpose', 'required', 'secret', 'git'])}\n### Environment variables\n\n${depTable(d.environmentVariables, ['name', 'purpose', 'required', 'secret'])}\n### Filesystem paths\n\n${depTable(d.filesystemPaths, ['path', 'purpose', 'required', 'git'])}\n### Tracked assets\n\n${depTable(d.trackedAssets, ['path', 'purpose', 'required', 'git'])}\n### Generated artifacts\n\n${depTable(d.generatedArtifacts, ['path', 'purpose', 'git'])}\n`;
 }
 
 function processing(spec: WorkflowAgentSpec): string {
@@ -49,7 +50,12 @@ function processing(spec: WorkflowAgentSpec): string {
 function startupCheck(spec: WorkflowAgentSpec): string {
   const d = spec.dependencies;
   const checks = [
-    ...(d.externalTools ?? []).map((tool) => `- [ ] ${tool.name}: ${tool.verify ? `\`${tool.verify}\`` : 'verify installed'}`),
+    ...(d.externalTools ?? []).map((tool) => {
+      const verify = tool.verifyAny?.length
+        ? tool.verifyAny.map((check) => `${check.name}: \`${check.command}\``).join(' OR ')
+        : tool.verify ? `\`${tool.verify}\`` : 'verify installed';
+      return `- [ ] ${tool.name}: ${verify}`;
+    }),
     ...(d.localConfig ?? []).map((cfg) => `- [ ] Config exists: \`${cfg.path}\`${cfg.containsSecrets ? ' (secret-bearing, never commit)' : ''}`),
     ...(d.environmentVariables ?? []).map((env) => `- [ ] Environment variable set: \`${env.name}\`${env.containsSecrets ? ' (secret)' : ''}`),
     ...(d.filesystemPaths ?? []).map((p) => `- [ ] Path available: \`${p.path}\``),
@@ -117,10 +123,22 @@ export function renderGitignore(spec: WorkflowAgentSpec): string {
   return Array.from(new Set(lines)).join('\n') + '\n';
 }
 
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'"'"'`)}'`;
+}
+
 export function renderDoctor(spec: WorkflowAgentSpec): string {
-  const toolChecks = (spec.dependencies.externalTools ?? []).filter((tool) => tool.required !== false).map((tool) => tool.verify ? `check_cmd ${JSON.stringify(tool.name ?? tool.verify)} ${JSON.stringify(tool.verify)}` : '');
-  const envChecks = (spec.dependencies.environmentVariables ?? []).filter((env) => env.required !== false).map((env) => `check_env ${JSON.stringify(env.name ?? '')}`);
-  const configChecks = (spec.dependencies.localConfig ?? []).map((cfg) => `check_path ${JSON.stringify(cfg.path ?? '')}`);
-  const pathChecks = (spec.dependencies.filesystemPaths ?? []).filter((p) => p.required !== false).map((p) => `check_path ${JSON.stringify(p.path ?? '')}`);
-  return `#!/usr/bin/env bash\nset -u\nfail=0\n\nexpand_path() {\n  case "$1" in\n    ~/*) printf '%s/%s' "$HOME" "\${1#~/}" ;;\n    *) printf '%s' "$1" ;;\n  esac\n}\n\ncheck_cmd() {\n  local name="$1"\n  local cmd="$2"\n  echo "checking $name: $cmd"\n  if bash -lc "$cmd" >/dev/null 2>&1; then\n    echo "  ok"\n  else\n    echo "  missing/failed"\n    fail=1\n  fi\n}\n\ncheck_env() {\n  local name="$1"\n  if [ -n "\${!name:-}" ]; then\n    echo "env $name: ok"\n  else\n    echo "env $name: missing"\n    fail=1\n  fi\n}\n\ncheck_path() {\n  local p\n  p=$(expand_path "$1")\n  if [ -e "$p" ]; then\n    echo "path $1: ok"\n  else\n    echo "path $1: missing"\n    fail=1\n  fi\n}\n\n${[...toolChecks, ...envChecks, ...configChecks, ...pathChecks].filter(Boolean).join('\n')}\n\nexit "$fail"\n`;
+  const toolChecks = (spec.dependencies.externalTools ?? []).filter((tool) => tool.required !== false).map((tool) => {
+    if (tool.verifyAny?.length) {
+      const args = tool.verifyAny.flatMap((check) => [check.name, check.command]).map(shellQuote).join(' ');
+      return `check_any_cmd ${shellQuote(tool.name ?? 'tool')} ${args}`;
+    }
+    return tool.verify ? `check_cmd ${shellQuote(tool.name ?? tool.verify)} ${shellQuote(tool.verify)}` : '';
+  });
+  const envChecks = (spec.dependencies.environmentVariables ?? []).filter((env) => env.required !== false).map((env) => `check_env ${shellQuote(env.name ?? '')}`);
+  const configChecks = (spec.dependencies.localConfig ?? []).map((cfg) => `check_path ${shellQuote(cfg.path ?? '')}`);
+  const pathSettingsChecks = (spec.doctor?.pathSettingsFiles ?? []).map((file) => `check_json_paths ${shellQuote(file)}`);
+  const staticPathChecks = spec.doctor?.pathSettingsFiles?.length ? [] : (spec.dependencies.filesystemPaths ?? []).filter((p) => p.required !== false).map((p) => `check_path ${shellQuote(p.path ?? '')}`);
+  const checks = [...toolChecks, ...envChecks, ...configChecks, ...pathSettingsChecks, ...staticPathChecks].filter(Boolean).join('\n');
+  return `#!/usr/bin/env bash\nset -u\nfail=0\n\nexpand_path() {\n  local value="$1"\n  if [[ "$value" == "~/"* ]]; then\n    printf '%s/%s' "$HOME" "\${value#\\~/}"\n  else\n    printf '%s' "$value"\n  fi\n}\n\ncheck_cmd() {\n  local name="$1"\n  local cmd="$2"\n  echo "checking $name: $cmd"\n  if bash -lc "$cmd" >/dev/null 2>&1; then\n    echo "  ok"\n  else\n    echo "  missing/failed"\n    fail=1\n  fi\n}\n\ncheck_any_cmd() {\n  local name="$1"\n  shift\n  echo "checking $name: one of the supported options"\n  while [ "$#" -gt 0 ]; do\n    local label="$1"\n    local cmd="$2"\n    shift 2\n    echo "  option $label: $cmd"\n    if bash -lc "$cmd" >/dev/null 2>&1; then\n      echo "  ok ($label)"\n      return 0\n    fi\n  done\n  echo "  missing/failed: supply one of the options above"\n  fail=1\n}\n\ncheck_env() {\n  local name="$1"\n  if [ -n "\${!name:-}" ]; then\n    echo "env $name: ok"\n  else\n    echo "env $name: missing"\n    fail=1\n  fi\n}\n\ncheck_path() {\n  local p\n  p=$(expand_path "$1")\n  if [ -e "$p" ]; then\n    echo "path $1: ok"\n  else\n    echo "path $1: missing"\n    fail=1\n  fi\n}\n\ncheck_json_paths() {\n  local file="$1"\n  local expanded\n  expanded=$(expand_path "$file")\n  if [ ! -f "$expanded" ]; then\n    echo "settings paths file $file: missing"\n    fail=1\n    return\n  fi\n  echo "checking paths from $file"\n  while IFS=$'\\t' read -r key value; do\n    [ -n "$key" ] || continue\n    local path_value\n    path_value=$(expand_path "$value")\n    if [ -e "$path_value" ]; then\n      echo "path $key=$value: ok"\n    else\n      echo "path $key=$value: missing"\n      fail=1\n    fi\n  done < <(node -e 'const fs=require("fs"); const file=process.argv[1]; const data=JSON.parse(fs.readFileSync(file,"utf8")); for (const [k,v] of Object.entries(data)) if (typeof v === "string") console.log(k + "\\t" + v);' "$expanded")\n}\n\n${checks}\n\nexit "$fail"\n`;
 }

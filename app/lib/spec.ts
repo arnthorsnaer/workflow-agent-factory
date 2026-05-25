@@ -6,6 +6,7 @@ export type DependencyItem = {
   purpose: string;
   required?: boolean;
   verify?: string;
+  verifyAny?: Array<{ name: string; command: string }>;
   containsSecrets?: boolean;
   gitPolicy?: string;
   notes?: string;
@@ -41,6 +42,7 @@ export type ProcessingSpec = {
 };
 
 export type CopySpec = { from: string; to: string };
+export type FileSpec = { path: string; content?: string; json?: unknown };
 export type ReplacementSpec = { file: string; oldText: string; newText: string };
 
 export type WorkflowAgentSpec = {
@@ -70,7 +72,11 @@ export type WorkflowAgentSpec = {
   scaffold?: {
     copy?: CopySpec[];
     createDirs?: string[];
+    files?: FileSpec[];
     replacements?: ReplacementSpec[];
+  };
+  doctor?: {
+    pathSettingsFiles?: string[];
   };
 };
 

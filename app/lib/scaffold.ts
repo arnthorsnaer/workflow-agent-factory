@@ -22,6 +22,11 @@ export async function createAgent(spec: WorkflowAgentSpec, options: { outDir: st
     await ensureDir(path.join(out, dir));
   }
 
+  for (const file of spec.scaffold?.files ?? []) {
+    const content = file.json !== undefined ? `${JSON.stringify(file.json, null, 2)}\n` : file.content ?? '';
+    await writeText(path.join(out, file.path), content);
+  }
+
   for (const replacement of spec.scaffold?.replacements ?? []) {
     const file = path.join(out, replacement.file);
     const content = await fs.readFile(file, 'utf8');

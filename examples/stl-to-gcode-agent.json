@@ -11,7 +11,11 @@
     "externalTools": [
       { "name": "bun", "purpose": "Run internal scripts.", "required": true, "verify": "bun --version" },
       { "name": "unzip", "purpose": "List and extract ZIP model archives safely.", "required": true, "verify": "unzip -v" },
-      { "name": "PrusaSlicer CLI", "purpose": "Slice STL to G-code.", "required": true, "verify": "prusa-slicer --help", "notes": "May also be supplied via PRUSA_SLICER_BIN or --prusa-slicer." },
+      { "name": "PrusaSlicer CLI", "purpose": "Slice STL to G-code.", "required": true, "verifyAny": [
+        { "name": "PATH", "command": "prusa-slicer --help" },
+        { "name": "PRUSA_SLICER_BIN", "command": "test -n \"$PRUSA_SLICER_BIN\" && \"$PRUSA_SLICER_BIN\" --help" },
+        { "name": "macOS app default", "command": "test -x /Applications/PrusaSlicer.app/Contents/MacOS/PrusaSlicer && /Applications/PrusaSlicer.app/Contents/MacOS/PrusaSlicer --help" }
+      ], "notes": "Supply PrusaSlicer either on PATH as prusa-slicer, via PRUSA_SLICER_BIN, or with --prusa-slicer when running slice/convert." },
       { "name": "agent-browser", "purpose": "Optional Thingiverse browser fallback when direct ZIP download fails.", "required": false, "verify": "agent-browser --help" }
     ],
     "internalTools": [
