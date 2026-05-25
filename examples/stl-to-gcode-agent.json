@@ -1,0 +1,109 @@
+{
+  "name": "stl-to-gcode-agent",
+  "description": "Workflow agent for converting STL/ZIP/Thingiverse inputs into local G-code for a Creality Ender-3 V2 Neo using checked-in PrusaSlicer profiles.",
+  "mission": [
+    "Import local STL/ZIP files or supported URLs.",
+    "Validate and list discovered STL files.",
+    "Slice the selected printable STL with an approved checked-in profile.",
+    "Publish the final G-code to an external destination only when available, then clean processing files and preserve ignored evidence."
+  ],
+  "dependencies": {
+    "externalTools": [
+      { "name": "bun", "purpose": "Run internal scripts.", "required": true, "verify": "bun --version" },
+      { "name": "unzip", "purpose": "List and extract ZIP model archives safely.", "required": true, "verify": "unzip -v" },
+      { "name": "PrusaSlicer CLI", "purpose": "Slice STL to G-code.", "required": true, "verify": "prusa-slicer --help", "notes": "May also be supplied via PRUSA_SLICER_BIN or --prusa-slicer." },
+      { "name": "agent-browser", "purpose": "Optional Thingiverse browser fallback when direct ZIP download fails.", "required": false, "verify": "agent-browser --help" }
+    ],
+    "internalTools": [
+      { "name": "convert", "command": "bun run convert <source>", "purpose": "One-shot import, list, slice, and preview." },
+      { "name": "import", "command": "bun run import <source>", "purpose": "Import/download/extract/discover STL files." },
+      { "name": "list", "command": "bun run list <id>", "purpose": "List discovered STL files and printable status." },
+      { "name": "slice", "command": "bun run slice <id>", "purpose": "Slice one selected STL using an approved profile." },
+      { "name": "preview", "command": "bun run preview <id>", "purpose": "Regenerate SVG previews from G-code." }
+    ],
+    "services": [],
+    "localConfig": [],
+    "environmentVariables": [
+      { "name": "PRUSA_SLICER_BIN", "purpose": "Optional override for PrusaSlicer binary path.", "required": false, "containsSecrets": false }
+    ],
+    "filesystemPaths": [
+      { "path": "projects/", "purpose": "Internal ignored processing workspace.", "required": true, "gitPolicy": "tracked only as .gitkeep; processing contents ignored" },
+      { "path": "archive/", "purpose": "Ignored local evidence archive.", "required": true, "gitPolicy": "tracked only as .gitkeep; contents ignored" },
+      { "path": "profiles/ender3-v2-neo/", "purpose": "Checked-in approved PrusaSlicer profiles.", "required": true, "gitPolicy": "tracked" },
+      { "path": "/Volumes/3D_PRINTS", "purpose": "Optional already-mounted external G-code destination.", "required": false, "gitPolicy": "external; do not manage mount" }
+    ],
+    "trackedAssets": [
+      { "path": "profiles/ender3-v2-neo/*.ini", "purpose": "Approved printer/material profiles.", "required": true, "gitPolicy": "tracked" }
+    ],
+    "generatedArtifacts": [
+      { "path": "projects/*/todo/", "purpose": "Raw imported model files.", "gitPolicy": "ignored" },
+      { "path": "projects/*/in-process/", "purpose": "Extracted/intermediate model files and metadata.", "gitPolicy": "ignored" },
+      { "path": "projects/*/done/", "purpose": "Generated G-code and previews before external publish.", "gitPolicy": "ignored" },
+      { "path": "projects/*/evidence/", "purpose": "Local job evidence, ignored because it can contain private paths/source URLs.", "gitPolicy": "ignored" },
+      { "path": "archive/*", "purpose": "Archived local evidence after cleanup.", "gitPolicy": "ignored" }
+    ]
+  },
+  "processing": {
+    "projectRoot": "projects",
+    "archiveRoot": "archive",
+    "filesBeingProcessed": {
+      "location": "internal",
+      "internalStages": ["todo", "in-process", "done"],
+      "neverCommit": true
+    },
+    "evidence": {
+      "enabled": true,
+      "commitPolicy": "ignored by default",
+      "archiveAfterCompletion": true,
+      "files": ["manifest.json", "events.log", "decisions.md", "outputs.json", "cleanup.json"]
+    },
+    "cleanup": {
+      "afterPublish": true,
+      "removeOrTrashProcessingFiles": true,
+      "preserveEvidenceOnly": true
+    }
+  },
+  "hardBoundaries": [
+    "Do not communicate with the printer.",
+    "Do not mount, unmount, format, erase, or otherwise manage SD cards.",
+    "Do not use OctoPrint.",
+    "Do not build or invent slicing settings dynamically; use checked-in profiles only.",
+    "Never commit model inputs, generated G-code, previews, or private evidence."
+  ],
+  "standardWorkflow": [
+    "Run startup dependency checks.",
+    "Import source into projects/<id>/todo and extract/process under projects/<id>/in-process.",
+    "List discovered STLs and ask the user if more than one printable STL is found.",
+    "Slice with the selected checked-in profile and write G-code/previews to projects/<id>/done.",
+    "If /Volumes/3D_PRINTS is already mounted, copy the final G-code there; otherwise report the local output path.",
+    "After external publish is verified, remove processing files and archive evidence only."
+  ],
+  "fallbackWorkflow": [
+    "If PrusaSlicer is not on PATH, use PRUSA_SLICER_BIN or --prusa-slicer.",
+    "If direct Thingiverse ZIP download fails, use agent-browser fallback when available.",
+    "If browser fallback fails, ask the user to manually download the STL/ZIP and rerun convert."
+  ],
+  "safetyRules": [
+    "Never commit files being processed.",
+    "Use safe ZIP extraction and reject unsafe archive paths.",
+    "Validate STL parseability, geometry, and build volume before slicing.",
+    "Evidence is local and ignored by default."
+  ],
+  "knownLimitations": [
+    "Thingiverse support is best-effort.",
+    "Preview SVGs are sanity checks parsed from G-code and do not replace slicer/printer validation."
+  ],
+  "scaffold": {
+    "copy": [
+      { "from": "../../stl-to-gcode-agent/app", "to": "app" },
+      { "from": "../../stl-to-gcode-agent/profiles", "to": "profiles" },
+      { "from": "../../stl-to-gcode-agent/package.json", "to": "package.json" },
+      { "from": "../../stl-to-gcode-agent/package-lock.json", "to": "package-lock.json" }
+    ],
+    "createDirs": ["projects", "archive"]
+  },
+  "git": {
+    "visibility": "public",
+    "extraIgnore": ["*.gcode", "*.stl", "*.3mf", "*.zip"]
+  }
+}

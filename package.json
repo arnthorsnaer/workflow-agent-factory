@@ -1,0 +1,14 @@
+{
+  "name": "workflow-agent-factory",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Generate dependency-explicit workflow-agent repositories for repeatable LLM-operated workflows.",
+  "scripts": {
+    "create": "bun app/scripts/create.ts",
+    "compare": "bun app/scripts/compare.ts"
+  },
+  "engines": {
+    "bun": ">=1.1.0"
+  }
+}

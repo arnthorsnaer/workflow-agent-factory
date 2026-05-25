@@ -1,0 +1,95 @@
+{
+  "name": "video-fetcher-agent",
+  "description": "Workflow agent for fetching movies/TV, monitoring downloads, publishing completed media into Plex-compatible libraries, and preserving local evidence without committing media or credentials.",
+  "mission": [
+    "Check the existing library before downloading.",
+    "Search/select viable releases using the configured media services and indexers.",
+    "Add downloads to qBittorrent staging, monitor progress, rename completed files, and publish to the correct media library.",
+    "Clean processing files after publish and keep only local ignored evidence."
+  ],
+  "dependencies": {
+    "externalTools": [
+      { "name": "tsarr", "purpose": "Inspect/manage Sonarr, Radarr, Prowlarr, qBittorrent, and service configuration.", "required": true, "verify": "tsarr --version" },
+      { "name": "curl", "purpose": "Direct HTTP API calls to media services.", "required": true, "verify": "curl --version" },
+      { "name": "node", "purpose": "Read local tsarr JSON config and transform API responses.", "required": true, "verify": "node --version" }
+    ],
+    "internalTools": [],
+    "services": [
+      { "name": "Sonarr", "url": "http://localhost:8989", "purpose": "TV library source of truth.", "required": true, "verify": "Use API key from untracked tsarr config to call /api/v3/system/status." },
+      { "name": "Radarr", "url": "http://localhost:7878", "purpose": "Movie library source of truth.", "required": true, "verify": "Use API key from untracked tsarr config to call /api/v3/system/status." },
+      { "name": "Prowlarr", "url": "http://localhost:9696", "purpose": "Indexer/search aggregator.", "required": true, "verify": "Use API key from untracked tsarr config to call /api/v1/system/status." },
+      { "name": "qBittorrent", "url": "http://localhost:8080", "purpose": "Download client.", "required": true, "verify": "Login with QBIT_USERNAME/QBIT_PASSWORD from environment and list torrents." }
+    ],
+    "localConfig": [
+      { "path": "~/.config/tsarr/config.json", "purpose": "Local service URLs and API keys.", "required": true, "containsSecrets": true, "gitPolicy": "never commit" }
+    ],
+    "environmentVariables": [
+      { "name": "QBIT_USERNAME", "purpose": "qBittorrent API username.", "required": true, "containsSecrets": false },
+      { "name": "QBIT_PASSWORD", "purpose": "qBittorrent API password.", "required": true, "containsSecrets": true }
+    ],
+    "filesystemPaths": [
+      { "path": "~/Movies/video/Movies/", "purpose": "Movie library destination.", "required": true },
+      { "path": "~/Movies/video/sonarr/", "purpose": "TV library destination.", "required": true },
+      { "path": "~/Downloads/incoming/", "purpose": "External qBittorrent staging/download area.", "required": true, "gitPolicy": "external processing path; never commit" },
+      { "path": "~/Movies/video/.trash/", "purpose": "Safe-delete destination for processed source folders/files.", "required": true }
+    ],
+    "trackedAssets": [],
+    "generatedArtifacts": [
+      { "path": "projects/*/evidence/", "purpose": "Local job evidence, ignored because it can contain private names/paths.", "gitPolicy": "ignored" },
+      { "path": "archive/*", "purpose": "Archived local evidence after cleanup.", "gitPolicy": "ignored" }
+    ]
+  },
+  "processing": {
+    "projectRoot": "projects",
+    "archiveRoot": "archive",
+    "filesBeingProcessed": {
+      "location": "external",
+      "externalPaths": ["~/Downloads/incoming/"],
+      "neverCommit": true
+    },
+    "evidence": {
+      "enabled": true,
+      "commitPolicy": "ignored by default",
+      "archiveAfterCompletion": true,
+      "files": ["manifest.json", "events.log", "decisions.md", "outputs.json", "cleanup.json"]
+    },
+    "cleanup": {
+      "afterPublish": true,
+      "removeOrTrashProcessingFiles": true,
+      "preserveEvidenceOnly": true
+    }
+  },
+  "hardBoundaries": [
+    "Never commit credentials, API keys, cookies, service config, torrent files, or media files.",
+    "Never rm -rf media; move processed sources to the configured trash path after verifying the published copy.",
+    "Do not interrupt mid-download for routine choices; ask upfront when release size/quality policy requires it.",
+    "Use Sonarr as TV source of truth and Radarr as movie source of truth."
+  ],
+  "standardWorkflow": [
+    "Run startup dependency checks and load secrets only from local untracked config/environment.",
+    "Check Sonarr/Radarr/library before searching.",
+    "Search Prowlarr directly when magnet information is needed.",
+    "Add selected magnet to qBittorrent using the external incoming path.",
+    "Monitor completion, inspect final files, rename with Plex-compatible names, and publish to the media library.",
+    "Verify published files exist, delete torrent from qBittorrent, move source payload to trash, preserve local evidence, and archive evidence."
+  ],
+  "fallbackWorkflow": [
+    "If a download stalls for multiple checks, find a better release and swap automatically unless upfront policy requires approval.",
+    "If service CLI behavior is incomplete, use direct service APIs with locally loaded API keys.",
+    "If naming is ambiguous, inspect filenames and service metadata before moving files."
+  ],
+  "safetyRules": [
+    "Never commit files being processed.",
+    "Evidence is local and ignored by default.",
+    "Verify destination exists before trashing the source.",
+    "Keep subtitles only when they match the published media."
+  ],
+  "knownLimitations": [
+    "Some tsarr commands may not expose magnet URLs; use direct Prowlarr API when needed.",
+    "qBittorrent API requires cookie authentication with local environment credentials."
+  ],
+  "git": {
+    "visibility": "private",
+    "extraIgnore": ["incoming/", "downloads/", "*.mkv", "*.mp4", "*.avi", "*.mov", "*.srt", "*.torrent", "tsarr-config*.json"]
+  }
+}
