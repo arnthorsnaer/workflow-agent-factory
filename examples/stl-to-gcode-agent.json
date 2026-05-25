@@ -29,11 +29,11 @@
     "filesystemPaths": [
       { "path": "projects/", "purpose": "Internal ignored processing workspace.", "required": true, "gitPolicy": "tracked only as .gitkeep; processing contents ignored" },
       { "path": "projects/archive/", "purpose": "Ignored local evidence archive.", "required": true, "gitPolicy": "tracked only as .gitkeep; contents ignored" },
-      { "path": "profiles/ender3-v2-neo/", "purpose": "Checked-in approved PrusaSlicer profiles.", "required": true, "gitPolicy": "tracked" },
+      { "path": "settings/prusa-slicer/ender3-v2-neo/", "purpose": "Checked-in approved PrusaSlicer profiles.", "required": true, "gitPolicy": "tracked" },
       { "path": "/Volumes/3D_PRINTS", "purpose": "Optional already-mounted external G-code destination.", "required": false, "gitPolicy": "external; do not manage mount" }
     ],
     "trackedAssets": [
-      { "path": "profiles/ender3-v2-neo/*.ini", "purpose": "Approved printer/material profiles.", "required": true, "gitPolicy": "tracked" }
+      { "path": "settings/prusa-slicer/ender3-v2-neo/*.ini", "purpose": "Approved printer/material profiles.", "required": true, "gitPolicy": "tracked" }
     ],
     "generatedArtifacts": [
       { "path": "projects/*/todo/", "purpose": "Raw imported model files.", "gitPolicy": "ignored" },
@@ -95,12 +95,17 @@
   ],
   "scaffold": {
     "copy": [
-      { "from": "../../stl-to-gcode-agent/app", "to": "app" },
-      { "from": "../../stl-to-gcode-agent/profiles", "to": "profiles" },
+      { "from": "../../stl-to-gcode-agent/app/lib", "to": "app/lib" },
+      { "from": "../../stl-to-gcode-agent/app/scripts", "to": "app/commands" },
+      { "from": "../../stl-to-gcode-agent/profiles/ender3-v2-neo", "to": "settings/prusa-slicer/ender3-v2-neo" },
       { "from": "../../stl-to-gcode-agent/package.json", "to": "package.json" },
       { "from": "../../stl-to-gcode-agent/package-lock.json", "to": "package-lock.json" }
     ],
-    "createDirs": ["projects", "projects/archive"]
+    "createDirs": ["projects", "projects/archive", "settings"],
+    "replacements": [
+      { "file": "app/lib/paths.ts", "oldText": "export const profilesRoot = path.join(root, 'profiles', 'ender3-v2-neo');", "newText": "export const profilesRoot = path.join(root, 'settings', 'prusa-slicer', 'ender3-v2-neo');" },
+      { "file": "package.json", "oldText": "app/scripts/", "newText": "app/commands/" }
+    ]
   },
   "git": {
     "visibility": "public",

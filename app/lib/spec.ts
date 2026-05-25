@@ -41,6 +41,7 @@ export type ProcessingSpec = {
 };
 
 export type CopySpec = { from: string; to: string };
+export type ReplacementSpec = { file: string; oldText: string; newText: string };
 
 export type WorkflowAgentSpec = {
   name: string;
@@ -69,6 +70,7 @@ export type WorkflowAgentSpec = {
   scaffold?: {
     copy?: CopySpec[];
     createDirs?: string[];
+    replacements?: ReplacementSpec[];
   };
 };
 

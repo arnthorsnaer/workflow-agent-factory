@@ -22,6 +22,15 @@ export async function createAgent(spec: WorkflowAgentSpec, options: { outDir: st
     await ensureDir(path.join(out, dir));
   }
 
+  for (const replacement of spec.scaffold?.replacements ?? []) {
+    const file = path.join(out, replacement.file);
+    const content = await fs.readFile(file, 'utf8');
+    if (!content.includes(replacement.oldText)) {
+      throw new Error(`replacement text not found in ${replacement.file}`);
+    }
+    await fs.writeFile(file, content.split(replacement.oldText).join(replacement.newText), 'utf8');
+  }
+
   const projectRoot = spec.processing.projectRoot ?? 'projects';
   const archiveRoot = spec.processing.archiveRoot ?? 'archive';
   await ensureDir(path.join(out, projectRoot));

@@ -15,6 +15,15 @@ Do not categorize agents as instruction-only or tool-backed. Every workflow agen
 - tracked assets
 - generated artifacts
 
+Generated agents use these standard directories:
+
+- `settings/` — committed, non-secret workflow settings/configuration.
+- `app/commands/` — internal workflow command entrypoints.
+- `app/lib/` — internal reusable workflow code.
+- `scripts/` — operational helper scripts such as `doctor.sh`.
+- `projects/` — local processing/evidence workspace.
+- `projects/archive/` — local archived evidence.
+
 The only useful distinction is whether each dependency is owned by the repo or expected to exist outside it.
 
 ## Hard boundaries
@@ -72,4 +81,4 @@ After successful external publish, cleanup should remove/trash processing files 
 ## Current example specs
 
 - `examples/video-fetcher-agent.json` — external processing in `~/Downloads/incoming/`, local ignored evidence only.
-- `examples/stl-to-gcode-agent.json` — internal `projects/<id>/todo|in-process|done` processing, plus copied internal tools/profiles from the existing STL agent.
+- `examples/stl-to-gcode-agent.json` — internal `projects/<id>/todo|in-process|done` processing, copied internal tools under `app/commands`/`app/lib`, and committed non-secret settings under `settings/prusa-slicer`.
