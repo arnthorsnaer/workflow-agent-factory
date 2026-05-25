@@ -58,6 +58,15 @@ export async function createAgent(spec: WorkflowAgentSpec, options: { outDir: st
   };
 
   await writeText(path.join(out, '.factory', 'workflow-agent.generated.json'), `${JSON.stringify(generatedManifest, null, 2)}\n`);
-  await writeText(path.join(out, 'scripts', 'doctor.sh'), renderDoctor(spec));
-  await fs.chmod(path.join(out, 'scripts', 'doctor.sh'), 0o755);
+  await writeText(path.join(out, 'commands', 'doctor.sh'), renderDoctor(spec));
+
+  async function chmodShellScripts(dir: string): Promise<void> {
+    const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) await chmodShellScripts(full);
+      else if (entry.isFile() && entry.name.endsWith('.sh')) await fs.chmod(full, 0o755);
+    }
+  }
+  await chmodShellScripts(path.join(out, 'commands'));
 }

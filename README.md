@@ -56,10 +56,12 @@ Each spec must declare:
 ## Standard directories
 
 ```text
-settings/              committed non-secret workflow settings/configuration
-app/commands/          internal workflow command entrypoints
-app/lib/               internal reusable workflow code
-scripts/               operational helper scripts such as doctor.sh
+settings.json          root committed non-secret workflow settings
+commands/              stable workflow-agent command surface
+commands/doctor.sh     workflow-agent dependency check
+tools/                 internal tool implementations/packages
+tools/<tool>/app/cli/  internal tool CLI entrypoints
+tools/<tool>/app/lib/  internal reusable tool code
 projects/              local processing/evidence workspace
 projects/archive/      local archived evidence
 ```
@@ -73,7 +75,7 @@ AGENTS.md
 README.md
 .gitignore
 .factory/workflow-agent.generated.json
-scripts/doctor.sh
+commands/doctor.sh
 projects/.gitkeep
 projects/archive/.gitkeep
 ```

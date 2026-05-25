@@ -74,7 +74,7 @@ export function renderAgents(spec: WorkflowAgentSpec): string {
 }
 
 export function renderReadme(spec: WorkflowAgentSpec): string {
-  return `# ${spec.name}\n\n${spec.description}\n\n## Quick start\n\n1. Read \`AGENTS.md\`.\n2. Run the startup dependency check.\n3. Confirm required external tools, internal tools, services, config, environment variables, and paths.\n4. Process work through the declared workflow.\n5. Publish outputs to the external destination, clean processing files, and preserve evidence only.\n\n${dependencySections(spec)}\n${processing(spec)}\n${customSections(spec)}\n## Internal commands\n\n${spec.dependencies.internalTools?.length ? spec.dependencies.internalTools.map((tool) => `- \`${tool.command}\` — ${tool.purpose}`).join('\n') : '- None declared.'}\n\n## Doctor\n\nIf generated, run:\n\n\`\`\`bash\nscripts/doctor.sh\n\`\`\`\n`;
+  return `# ${spec.name}\n\n${spec.description}\n\n## Quick start\n\n1. Read \`AGENTS.md\`.\n2. Run the startup dependency check.\n3. Confirm required external tools, internal tools, services, config, environment variables, and paths.\n4. Process work through the declared workflow.\n5. Publish outputs to the external destination, clean processing files, and preserve evidence only.\n\n${dependencySections(spec)}\n${processing(spec)}\n${customSections(spec)}\n## Internal commands\n\n${spec.dependencies.internalTools?.length ? spec.dependencies.internalTools.map((tool) => `- \`${tool.command}\` — ${tool.purpose}`).join('\n') : '- None declared.'}\n\n## Doctor\n\nIf generated, run:\n\n\`\`\`bash\ncommands/doctor.sh\n\`\`\`\n`;
 }
 
 export function renderGitignore(spec: WorkflowAgentSpec): string {

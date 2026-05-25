@@ -28,7 +28,38 @@
         "verify": "node --version"
       }
     ],
-    "internalTools": [],
+    "internalTools": [
+      {
+        "name": "settings",
+        "command": "commands/settings.sh [key]",
+        "purpose": "Print settings.json or a single settings key."
+      },
+      {
+        "name": "prowlarr-search",
+        "command": "commands/prowlarr-search.sh <query>",
+        "purpose": "Search Prowlarr and print JSON results."
+      },
+      {
+        "name": "qbit-login",
+        "command": "commands/qbit-login.sh",
+        "purpose": "Authenticate to qBittorrent using environment credentials."
+      },
+      {
+        "name": "qbit-add",
+        "command": "commands/qbit-add.sh <magnet-uri> <category>",
+        "purpose": "Add a magnet to qBittorrent using configured download staging."
+      },
+      {
+        "name": "qbit-torrents",
+        "command": "commands/qbit-torrents.sh",
+        "purpose": "Print qBittorrent torrent list JSON."
+      },
+      {
+        "name": "sonarr-episodes",
+        "command": "commands/sonarr-episodes.sh <series-id>",
+        "purpose": "Print SxxExx to episode-title map from Sonarr."
+      }
+    ],
     "services": [
       {
         "name": "Sonarr",
@@ -196,7 +227,8 @@
   "scaffold": {
     "createDirs": [
       "projects",
-      "projects/archive"
+      "projects/archive",
+      "commands"
     ],
     "files": [
       {
@@ -220,6 +252,30 @@
       {
         "path": ".env.example",
         "content": "# qBittorrent API credentials. Real values go in your shell environment or an untracked .env file.\nQBIT_USERNAME=\nQBIT_PASSWORD=\n"
+      },
+      {
+        "path": "commands/settings.sh",
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nif [ \"$#\" -eq 0 ]; then cat \"$SETTINGS\"; else json_get \"$1\"; fi\n"
+      },
+      {
+        "path": "commands/qbit-login.sh",
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\n: \"${QBIT_USERNAME:?set QBIT_USERNAME}\"\n: \"${QBIT_PASSWORD:?set QBIT_PASSWORD}\"\nQBIT_URL=$(json_get services.qbittorrent)\ncurl -s -c /tmp/qbit_cookies.txt -X POST \"$QBIT_URL/api/v2/auth/login\" --data-urlencode \"username=$QBIT_USERNAME\" --data-urlencode \"password=$QBIT_PASSWORD\" >/dev/null\nprintf '{\"ok\":true,\"cookieFile\":\"/tmp/qbit_cookies.txt\"}\n'\n"
+      },
+      {
+        "path": "commands/qbit-torrents.sh",
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nQBIT_URL=$(json_get services.qbittorrent)\ncurl -s -b /tmp/qbit_cookies.txt \"$QBIT_URL/api/v2/torrents/info\"\n"
+      },
+      {
+        "path": "commands/qbit-add.sh",
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nMAGNET=${1:?usage: commands/qbit-add.sh <magnet-uri> <category>}\nCATEGORY=${2:?usage: commands/qbit-add.sh <magnet-uri> <category>}\nQBIT_URL=$(json_get services.qbittorrent)\nDOWNLOAD_STAGING=$(json_get paths.downloadStaging)\ncurl -s -b /tmp/qbit_cookies.txt -H \"Referer: $QBIT_URL\" -X POST \"$QBIT_URL/api/v2/torrents/add\" --data-urlencode \"urls=$MAGNET\" --data-urlencode \"savepath=$DOWNLOAD_STAGING\" --data-urlencode \"category=$CATEGORY\"\nprintf '{\"ok\":true,\"category\":\"%s\",\"savepath\":\"%s\"}\n' \"$CATEGORY\" \"$DOWNLOAD_STAGING\"\n"
+      },
+      {
+        "path": "commands/prowlarr-search.sh",
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nQUERY=${1:?usage: commands/prowlarr-search.sh <query>}\nPROWLARR_URL=$(json_get services.prowlarr)\nTSARR_CONFIG=$(expand_path \"$(json_get paths.tsarrConfig)\")\nPROWLARR_KEY=$(node -e \"const c=require(process.argv[1]); console.log(c.services.prowlarr.apiKey)\" \"$TSARR_CONFIG\")\nnode -e 'console.log(encodeURIComponent(process.argv.slice(1).join(\" \")))' \"$QUERY\" | { read -r encoded; curl -s \"$PROWLARR_URL/api/v1/search?query=$encoded&type=search&limit=50\" -H \"X-Api-Key: $PROWLARR_KEY\"; }\n"
+      },
+      {
+        "path": "commands/sonarr-episodes.sh",
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nSERIES_ID=${1:?usage: commands/sonarr-episodes.sh <series-id>}\nSONARR_URL=$(json_get services.sonarr)\nTSARR_CONFIG=$(expand_path \"$(json_get paths.tsarrConfig)\")\nSONARR_KEY=$(node -e \"const c=require(process.argv[1]); console.log(c.services.sonarr.apiKey)\" \"$TSARR_CONFIG\")\ncurl -s \"$SONARR_URL/api/v3/episode?seriesId=$SERIES_ID\" -H \"X-Api-Key: $SONARR_KEY\" | node -e 'const d=require(\"fs\").readFileSync(0,\"utf8\"); const map={}; JSON.parse(d).filter(e=>e.seasonNumber>0).forEach(e=>{const s=String(e.seasonNumber).padStart(2,\"0\"); const ep=String(e.episodeNumber).padStart(2,\"0\"); map[`S${s}E${ep}`]=e.title;}); console.log(JSON.stringify(map,null,2));'\n"
       }
     ]
   },

@@ -18,9 +18,10 @@ Do not categorize agents as instruction-only or tool-backed. Every workflow agen
 Generated agents use these standard directories:
 
 - `settings/` — committed, non-secret workflow settings/configuration.
-- `app/commands/` — internal workflow command entrypoints.
-- `app/lib/` — internal reusable workflow code.
-- `scripts/` — operational helper scripts such as `doctor.sh`.
+- `commands/` — stable workflow-agent command surface that the agent/user should run.
+- `tools/` — internal tool implementations/packages.
+- `tools/<tool>/app/cli/` — internal tool CLI entrypoints.
+- `tools/<tool>/app/lib/` — internal reusable tool code.
 - `projects/` — local processing/evidence workspace.
 - `projects/archive/` — local archived evidence.
 
@@ -55,7 +56,7 @@ bun run create examples/<agent>.json --out ../<agent-name>
 
 ```bash
 cd ../<agent-name>
-scripts/doctor.sh
+commands/doctor.sh
 ```
 
 7. Compare a generated agent to an existing agent when iterating:
@@ -83,4 +84,4 @@ After successful external publish, cleanup should remove/trash processing files 
 ## Current example specs
 
 - `examples/video-fetcher-agent.json` — external processing in `~/Downloads/incoming/`, local ignored evidence only.
-- `examples/stl-to-gcode-agent.json` — internal `projects/<id>/todo|in-process|done` processing, copied internal tools under `app/commands`/`app/lib`, root `settings.json`, and committed PrusaSlicer config under `tool-config/prusa-slicer`.
+- `examples/stl-to-gcode-agent.json` — internal `projects/<id>/todo|in-process|done` processing, top-level command wrappers under `commands/`, internal tooling under `tools/stl-to-gcode/`, root `settings.json`, and committed PrusaSlicer config under `tools/stl-to-gcode/tool-config/prusa-slicer`.
