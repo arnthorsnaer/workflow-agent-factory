@@ -43,10 +43,15 @@ export async function createAgent(spec: WorkflowAgentSpec, options: { outDir: st
   await writeText(path.join(out, projectRoot, '.gitkeep'), '');
   await writeText(path.join(out, archiveRoot, '.gitkeep'), '');
 
+  const manifest = JSON.parse(JSON.stringify(spec)) as WorkflowAgentSpec;
+  if (manifest.scaffold?.files) {
+    manifest.scaffold.files = manifest.scaffold.files.map((file) => ({ path: file.path }));
+  }
+
   await writeText(path.join(out, 'AGENTS.md'), renderAgents(spec));
   await writeText(path.join(out, 'README.md'), renderReadme(spec));
   await writeText(path.join(out, '.gitignore'), renderGitignore(spec));
-  await writeText(path.join(out, 'workflow-agent.json'), `${JSON.stringify(spec, null, 2)}\n`);
+  await writeText(path.join(out, 'workflow-agent.json'), `${JSON.stringify(manifest, null, 2)}\n`);
   await writeText(path.join(out, 'scripts', 'doctor.sh'), renderDoctor(spec));
   await fs.chmod(path.join(out, 'scripts', 'doctor.sh'), 0o755);
 }

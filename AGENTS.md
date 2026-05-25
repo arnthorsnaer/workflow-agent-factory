@@ -33,6 +33,8 @@ The only useful distinction is whether each dependency is owned by the repo or e
 - Evidence/archive data is ignored by default because it may contain private paths, titles, URLs, release names, or decisions.
 - Generated agents should commit only workflow instructions, internal tooling, templates, checked-in profiles/configs, and sanitized examples.
 - Preserve user-created source agents unless explicitly replacing them after approval.
+- Avoid multiple sources of truth. If a value is user-editable, store it in exactly one settings file and reference that file/key everywhere else, e.g. `settings/paths.json:movieLibrary`.
+- Do not duplicate editable setting values in generated docs, generated manifests, scripts, or examples unless the target file is the source-of-truth settings file itself.
 
 ## Standard workflow
 

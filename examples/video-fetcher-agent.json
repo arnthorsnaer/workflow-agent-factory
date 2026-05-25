@@ -21,7 +21,7 @@
       { "name": "qBittorrent", "url": "settings/services.json:qbittorrent", "purpose": "Download client.", "required": true, "verify": "Use URL from settings/services.json plus QBIT_USERNAME/QBIT_PASSWORD from environment to login and list torrents." }
     ],
     "localConfig": [
-      { "path": "~/.config/tsarr/config.json", "purpose": "Local service API keys and optional connection config.", "required": true, "containsSecrets": true, "gitPolicy": "never commit" }
+      { "path": "settings/paths.json:tsarrConfig", "purpose": "Editable path to local service API keys and optional connection config.", "required": true, "containsSecrets": true, "gitPolicy": "tracked key only; referenced file is never committed" }
     ],
     "environmentVariables": [
       { "name": "QBIT_USERNAME", "purpose": "qBittorrent API username.", "required": true, "containsSecrets": false },
@@ -97,6 +97,7 @@
     "createDirs": ["projects", "projects/archive", "settings"],
     "files": [
       { "path": "settings/paths.json", "json": {
+        "tsarrConfig": "~/.config/tsarr/config.json",
         "movieLibrary": "~/Movies/video/Movies/",
         "tvLibrary": "~/Movies/video/sonarr/",
         "downloadStaging": "~/Downloads/incoming/",

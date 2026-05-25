@@ -136,7 +136,9 @@ export function renderDoctor(spec: WorkflowAgentSpec): string {
     return tool.verify ? `check_cmd ${shellQuote(tool.name ?? tool.verify)} ${shellQuote(tool.verify)}` : '';
   });
   const envChecks = (spec.dependencies.environmentVariables ?? []).filter((env) => env.required !== false).map((env) => `check_env ${shellQuote(env.name ?? '')}`);
-  const configChecks = (spec.dependencies.localConfig ?? []).map((cfg) => `check_path ${shellQuote(cfg.path ?? '')}`);
+  const configChecks = (spec.dependencies.localConfig ?? [])
+    .filter((cfg) => !(cfg.path ?? '').includes('.json:'))
+    .map((cfg) => `check_path ${shellQuote(cfg.path ?? '')}`);
   const pathSettingsChecks = (spec.doctor?.pathSettingsFiles ?? []).map((file) => `check_json_paths ${shellQuote(file)}`);
   const staticPathChecks = spec.doctor?.pathSettingsFiles?.length ? [] : (spec.dependencies.filesystemPaths ?? []).filter((p) => p.required !== false).map((p) => `check_path ${shellQuote(p.path ?? '')}`);
   const checks = [...toolChecks, ...envChecks, ...configChecks, ...pathSettingsChecks, ...staticPathChecks].filter(Boolean).join('\n');
