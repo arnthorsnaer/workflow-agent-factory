@@ -1,0 +1,32 @@
+# macOS
+.DS_Store
+
+# Environment / local credentials
+.env
+.env.*
+!.env.example
+*.local
+*.secret
+secrets/
+credentials/
+config.local.*
+
+# Agent/runtime scratch
+tmp/
+.temp/
+cache/
+logs/
+*.log
+
+# Dependencies / build outputs
+node_modules/
+dist/
+build/
+coverage/
+
+# Python cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
