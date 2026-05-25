@@ -62,10 +62,10 @@ projects/<job-id>/todo/        raw inputs
 projects/<job-id>/in-process/  intermediate files
 projects/<job-id>/done/        final outputs before publish
 projects/<job-id>/evidence/    metadata/logs only
-archive/<job-id>/              evidence after cleanup
+projects/archive/<job-id>/     evidence after cleanup
 ```
 
-External processing agents keep the actual files outside the repo and use `projects/<job-id>/evidence/` only.
+External processing agents keep the actual files outside the repo and use `projects/<job-id>/evidence/` plus `projects/archive/<job-id>/` for archived evidence only.
 
 After successful external publish, cleanup should remove/trash processing files and preserve evidence only. Evidence is ignored by default.
 

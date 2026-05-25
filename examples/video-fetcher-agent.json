@@ -36,12 +36,12 @@
     "trackedAssets": [],
     "generatedArtifacts": [
       { "path": "projects/*/evidence/", "purpose": "Local job evidence, ignored because it can contain private names/paths.", "gitPolicy": "ignored" },
-      { "path": "archive/*", "purpose": "Archived local evidence after cleanup.", "gitPolicy": "ignored" }
+      { "path": "projects/archive/*", "purpose": "Archived local evidence after cleanup.", "gitPolicy": "ignored" }
     ]
   },
   "processing": {
     "projectRoot": "projects",
-    "archiveRoot": "archive",
+    "archiveRoot": "projects/archive",
     "filesBeingProcessed": {
       "location": "external",
       "externalPaths": ["~/Downloads/incoming/"],

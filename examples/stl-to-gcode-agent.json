@@ -28,7 +28,7 @@
     ],
     "filesystemPaths": [
       { "path": "projects/", "purpose": "Internal ignored processing workspace.", "required": true, "gitPolicy": "tracked only as .gitkeep; processing contents ignored" },
-      { "path": "archive/", "purpose": "Ignored local evidence archive.", "required": true, "gitPolicy": "tracked only as .gitkeep; contents ignored" },
+      { "path": "projects/archive/", "purpose": "Ignored local evidence archive.", "required": true, "gitPolicy": "tracked only as .gitkeep; contents ignored" },
       { "path": "profiles/ender3-v2-neo/", "purpose": "Checked-in approved PrusaSlicer profiles.", "required": true, "gitPolicy": "tracked" },
       { "path": "/Volumes/3D_PRINTS", "purpose": "Optional already-mounted external G-code destination.", "required": false, "gitPolicy": "external; do not manage mount" }
     ],
@@ -40,12 +40,12 @@
       { "path": "projects/*/in-process/", "purpose": "Extracted/intermediate model files and metadata.", "gitPolicy": "ignored" },
       { "path": "projects/*/done/", "purpose": "Generated G-code and previews before external publish.", "gitPolicy": "ignored" },
       { "path": "projects/*/evidence/", "purpose": "Local job evidence, ignored because it can contain private paths/source URLs.", "gitPolicy": "ignored" },
-      { "path": "archive/*", "purpose": "Archived local evidence after cleanup.", "gitPolicy": "ignored" }
+      { "path": "projects/archive/*", "purpose": "Archived local evidence after cleanup.", "gitPolicy": "ignored" }
     ]
   },
   "processing": {
     "projectRoot": "projects",
-    "archiveRoot": "archive",
+    "archiveRoot": "projects/archive",
     "filesBeingProcessed": {
       "location": "internal",
       "internalStages": ["todo", "in-process", "done"],
@@ -100,7 +100,7 @@
       { "from": "../../stl-to-gcode-agent/package.json", "to": "package.json" },
       { "from": "../../stl-to-gcode-agent/package-lock.json", "to": "package-lock.json" }
     ],
-    "createDirs": ["projects", "archive"]
+    "createDirs": ["projects", "projects/archive"]
   },
   "git": {
     "visibility": "public",

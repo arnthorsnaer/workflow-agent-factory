@@ -64,7 +64,7 @@ README.md
 workflow-agent.json
 scripts/doctor.sh
 projects/.gitkeep
-archive/.gitkeep
+projects/archive/.gitkeep
 ```
 
 If `scaffold.copy` is present, it also copies declared internal tools/assets into the generated repo.
@@ -75,7 +75,7 @@ Generated `.gitignore` files default to credential-safe and processing-safe rule
 
 - never commit `.env`, local config, credentials, cookies, or secrets
 - never commit `projects/*/todo/`, `projects/*/in-process/`, or `projects/*/done/`
-- ignore `projects/*/evidence/` and `archive/*` by default
+- ignore `projects/*/evidence/` and `projects/archive/*` by default
 - allow `.gitkeep` files for empty scaffolding
 
 Evidence is intentionally ignored because it can include private paths, titles, source URLs, release names, or decisions.
