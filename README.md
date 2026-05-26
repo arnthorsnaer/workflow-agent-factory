@@ -106,3 +106,5 @@ If a generated agent has a user-editable value, the factory should choose one so
 - generated docs/manifests/scripts: references to settings keys, not duplicated values
 
 Example: use `settings.json:paths.downloadStaging`, not a hardcoded download path in `AGENTS.md`.
+
+When a dependency or service has a safe CLI start/status/check command, model that command explicitly in `settings.json` and encapsulate it in `workflow/` or `utilities/`. The agent should run commands, not memorize ad-hoc service startup procedures.

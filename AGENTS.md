@@ -36,6 +36,7 @@ The only useful distinction is whether each dependency is owned by the repo or e
 - Generated agents should commit only workflow instructions, internal tooling, templates, checked-in profiles/configs, and sanitized examples.
 - Preserve user-created source agents unless explicitly replacing them after approval.
 - Avoid multiple sources of truth. If a value is user-editable, store it in exactly one settings file and reference that file/key everywhere else, e.g. `settings.json:paths.movieLibrary`.
+- Prefer executable command interfaces over prose-only operational instructions. If a dependency/service has a safe CLI start/status/check command, put it in `settings.json` and have workflow/utilities commands use it instead of asking the agent to remember manual steps.
 - Do not duplicate editable setting values in generated docs, generated manifests, scripts, or examples unless the target file is the source-of-truth settings file itself.
 
 ## Standard workflow
