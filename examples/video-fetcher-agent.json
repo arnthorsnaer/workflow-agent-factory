@@ -3,27 +3,21 @@
   "description": "Workflow agent for fetching movies/TV, monitoring downloads, publishing completed media into Plex-compatible libraries, and preserving local evidence without committing media or credentials.",
   "mission": [
     "Check the existing library before downloading.",
-    "Search/select viable releases using the configured media services and indexers.",
-    "Add downloads to qBittorrent staging, monitor progress, rename completed files, and publish to the correct media library.",
+    "Search/select viable releases using configured workflow commands.",
+    "Add downloads to the configured download client, monitor progress, rename completed files, and publish to the correct media library.",
     "Clean processing files after publish and keep only local ignored evidence."
   ],
   "dependencies": {
     "externalTools": [
       {
-        "name": "tsarr",
-        "purpose": "Inspect/manage Sonarr, Radarr, Prowlarr, qBittorrent, and service configuration.",
-        "required": true,
-        "verify": "tsarr --version"
-      },
-      {
         "name": "curl",
-        "purpose": "Direct HTTP API calls to media services.",
+        "purpose": "HTTP client used by command implementations.",
         "required": true,
         "verify": "curl --version"
       },
       {
         "name": "node",
-        "purpose": "Read local JSON settings/config and transform API responses.",
+        "purpose": "Read settings/config and normalize command JSON output.",
         "required": true,
         "verify": "node --version"
       }
@@ -35,65 +29,65 @@
         "purpose": "Print settings.json or a single settings key."
       },
       {
-        "name": "prowlarr-search",
-        "command": "commands/prowlarr-search.sh <query>",
-        "purpose": "Search Prowlarr and print JSON results."
+        "name": "search-releases",
+        "command": "commands/search-releases.sh <query>",
+        "purpose": "Search available releases and print normalized JSON results."
       },
       {
-        "name": "qbit-login",
-        "command": "commands/qbit-login.sh",
-        "purpose": "Authenticate to qBittorrent using environment credentials."
+        "name": "download-login",
+        "command": "commands/download-login.sh",
+        "purpose": "Authenticate to the configured download client."
       },
       {
-        "name": "qbit-add",
-        "command": "commands/qbit-add.sh <magnet-uri> <category>",
-        "purpose": "Add a magnet to qBittorrent using configured download staging."
+        "name": "add-download",
+        "command": "commands/add-download.sh <download-uri> <movie|tv|category>",
+        "purpose": "Add a selected release to the configured download client."
       },
       {
-        "name": "qbit-torrents",
-        "command": "commands/qbit-torrents.sh",
-        "purpose": "Print qBittorrent torrent list JSON."
+        "name": "list-downloads",
+        "command": "commands/list-downloads.sh",
+        "purpose": "Print normalized active/completed download status JSON."
       },
       {
-        "name": "sonarr-episodes",
-        "command": "commands/sonarr-episodes.sh <series-id>",
-        "purpose": "Print SxxExx to episode-title map from Sonarr."
+        "name": "get-episodes",
+        "command": "commands/get-episodes.sh <series-id>",
+        "purpose": "Print SxxExx to episode-title map from the configured TV metadata backend."
       }
     ],
     "services": [
       {
-        "name": "Sonarr",
-        "url": "settings.json:services.sonarr",
-        "purpose": "TV library source of truth.",
+        "name": "Release search backend",
+        "url": "settings.json:backends.releaseSearch.url",
+        "purpose": "Search/indexer backend. Current implementation type is configured in settings.json.",
         "required": true,
-        "verify": "Use URL from settings.json and API key from untracked tsarr config to call /api/v3/system/status."
+        "verify": "Use commands/search-releases.sh."
       },
       {
-        "name": "Radarr",
-        "url": "settings.json:services.radarr",
-        "purpose": "Movie library source of truth.",
+        "name": "Download client backend",
+        "url": "settings.json:backends.downloadClient.url",
+        "purpose": "Download client backend. Current implementation type is configured in settings.json.",
         "required": true,
-        "verify": "Use URL from settings.json and API key from untracked tsarr config to call /api/v3/system/status."
+        "verify": "Use commands/download-login.sh and commands/list-downloads.sh."
       },
       {
-        "name": "Prowlarr",
-        "url": "settings.json:services.prowlarr",
-        "purpose": "Indexer/search aggregator.",
+        "name": "TV metadata backend",
+        "url": "settings.json:backends.tvMetadata.url",
+        "purpose": "TV metadata/source-of-truth backend. Current implementation type is configured in settings.json.",
         "required": true,
-        "verify": "Use URL from settings.json and API key from untracked tsarr config to call /api/v1/system/status."
+        "verify": "Use commands/get-episodes.sh when episode titles are needed."
       },
       {
-        "name": "qBittorrent",
-        "url": "settings.json:services.qbittorrent",
-        "purpose": "Download client.",
+        "name": "Movie metadata backend",
+        "url": "settings.json:backends.movieMetadata.url",
+        "purpose": "Movie metadata/source-of-truth backend. Current implementation type is configured in settings.json.",
         "required": true,
-        "verify": "Use URL from settings.json plus QBIT_USERNAME/QBIT_PASSWORD from environment to login and list torrents."
+        "verify": "Use configured backend before searching/downloading movies."
       }
     ],
     "localConfig": [
       {
-        "path": "settings.json:paths.tsarrConfig",
-        "purpose": "Editable path to local service API keys and optional connection config.",
+        "path": "settings.json:paths.serviceConfig",
+        "purpose": "Editable path to local service API keys/connection config.",
         "required": true,
         "containsSecrets": true,
         "gitPolicy": "tracked key only; referenced file is never committed"
@@ -101,14 +95,14 @@
     ],
     "environmentVariables": [
       {
-        "name": "QBIT_USERNAME",
-        "purpose": "qBittorrent API username.",
+        "name": "DOWNLOAD_CLIENT_USERNAME",
+        "purpose": "Download client username used by commands/download-login.sh.",
         "required": true,
         "containsSecrets": false
       },
       {
-        "name": "QBIT_PASSWORD",
-        "purpose": "qBittorrent API password.",
+        "name": "DOWNLOAD_CLIENT_PASSWORD",
+        "purpose": "Download client password used by commands/download-login.sh.",
         "required": true,
         "containsSecrets": true
       }
@@ -128,7 +122,7 @@
       },
       {
         "path": "settings.json:paths.downloadStaging",
-        "purpose": "Editable external qBittorrent staging/download area.",
+        "purpose": "Editable external download staging area.",
         "required": true,
         "gitPolicy": "tracked non-secret setting; external processing path; never commit contents"
       },
@@ -142,7 +136,7 @@
     "trackedAssets": [
       {
         "path": "settings.json",
-        "purpose": "Editable non-secret workflow settings: local paths and service URLs.",
+        "purpose": "Editable non-secret workflow settings: local paths and backend URLs/types.",
         "required": true,
         "gitPolicy": "tracked"
       },
@@ -198,31 +192,33 @@
     "Never commit credentials, API keys, cookies, service config, torrent files, or media files.",
     "Never rm -rf media; move processed sources to the configured trash path after verifying the published copy.",
     "Do not interrupt mid-download for routine choices; ask upfront when release size/quality policy requires it.",
-    "Use Sonarr as TV source of truth and Radarr as movie source of truth."
+    "Use configured metadata backends as source of truth before searching/downloading."
   ],
   "standardWorkflow": [
     "Review and edit settings.json for this machine before first use.",
-    "Run startup dependency checks and load secrets only from local untracked config/environment.",
-    "Check Sonarr/Radarr/library before searching.",
-    "Search Prowlarr directly when magnet information is needed.",
-    "Add selected magnet to qBittorrent using the configured external incoming path.",
-    "Monitor completion, inspect final files, rename with Plex-compatible names, and publish to the configured media library.",
-    "Verify published files exist, delete torrent from qBittorrent, move source payload to trash, preserve local evidence, and archive evidence."
+    "Run commands/doctor.sh and load secrets only from local untracked config/environment.",
+    "Check the configured movie/TV libraries and metadata backends before searching.",
+    "Search releases with commands/search-releases.sh <query>.",
+    "Authenticate with commands/download-login.sh, then add the selected release with commands/add-download.sh <download-uri> <movie|tv>.",
+    "Monitor progress with commands/list-downloads.sh.",
+    "When needed for TV naming, fetch episode titles with commands/get-episodes.sh <series-id>.",
+    "Publish completed files to the configured media library, verify destination files exist, move source payloads to configured trash, preserve local evidence, and archive evidence."
   ],
   "fallbackWorkflow": [
     "If a download stalls for multiple checks, find a better release and swap automatically unless upfront policy requires approval.",
-    "If service CLI behavior is incomplete, use direct service APIs with locally loaded API keys.",
-    "If naming is ambiguous, inspect filenames and service metadata before moving files."
+    "If a command cannot handle an edge case, inspect the current backend implementation in commands/ and update the command rather than duplicating implementation details in AGENTS.md.",
+    "If naming is ambiguous, inspect filenames and metadata before moving files."
   ],
   "safetyRules": [
     "Never commit files being processed.",
     "Evidence is local and ignored by default.",
     "Verify destination exists before trashing the source.",
-    "Keep subtitles only when they match the published media."
+    "Keep subtitles only when they match the published media.",
+    "Command stdout is data for the agent; command stderr is diagnostics; command exit code indicates success/failure."
   ],
   "knownLimitations": [
-    "Some tsarr commands may not expose magnet URLs; use direct Prowlarr API when needed.",
-    "qBittorrent API requires cookie authentication with local environment credentials."
+    "Current command implementations target the backend types configured in settings.json.",
+    "If backend behavior changes, update commands/* rather than workflow prose."
   ],
   "scaffold": {
     "createDirs": [
@@ -235,47 +231,59 @@
         "path": "settings.json",
         "json": {
           "paths": {
-            "tsarrConfig": "~/.config/tsarr/config.json",
+            "serviceConfig": "~/.config/tsarr/config.json",
             "movieLibrary": "~/Movies/video/Movies/",
             "tvLibrary": "~/Movies/video/sonarr/",
             "downloadStaging": "~/Downloads/incoming/",
             "trash": "~/Movies/video/.trash/"
           },
-          "services": {
-            "sonarr": "http://localhost:8989",
-            "radarr": "http://localhost:7878",
-            "prowlarr": "http://localhost:9696",
-            "qbittorrent": "http://localhost:8080"
+          "backends": {
+            "releaseSearch": {
+              "type": "prowlarr",
+              "url": "http://localhost:9696"
+            },
+            "downloadClient": {
+              "type": "qbittorrent",
+              "url": "http://localhost:8080"
+            },
+            "tvMetadata": {
+              "type": "sonarr",
+              "url": "http://localhost:8989"
+            },
+            "movieMetadata": {
+              "type": "radarr",
+              "url": "http://localhost:7878"
+            }
           }
         }
       },
       {
         "path": ".env.example",
-        "content": "# qBittorrent API credentials. Real values go in your shell environment or an untracked .env file.\nQBIT_USERNAME=\nQBIT_PASSWORD=\n"
+        "content": "# Download client credentials. Real values go in your shell environment or an untracked .env file.\nDOWNLOAD_CLIENT_USERNAME=\nDOWNLOAD_CLIENT_PASSWORD=\n"
       },
       {
         "path": "commands/settings.sh",
-        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nif [ \"$#\" -eq 0 ]; then cat \"$SETTINGS\"; else json_get \"$1\"; fi\n"
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; if (typeof v === \"object\") console.log(JSON.stringify(v)); else console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#\\~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nservice_config() { expand_path \"$(json_get paths.serviceConfig)\"; }\napi_key() { node -e 'const c=require(process.argv[1]); console.log(c.services[process.argv[2]].apiKey)' \"$(service_config)\" \"$1\"; }\nif [ \"$#\" -eq 0 ]; then cat \"$SETTINGS\"; else json_get \"$1\"; fi\n"
       },
       {
-        "path": "commands/qbit-login.sh",
-        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\n: \"${QBIT_USERNAME:?set QBIT_USERNAME}\"\n: \"${QBIT_PASSWORD:?set QBIT_PASSWORD}\"\nQBIT_URL=$(json_get services.qbittorrent)\ncurl -s -c /tmp/qbit_cookies.txt -X POST \"$QBIT_URL/api/v2/auth/login\" --data-urlencode \"username=$QBIT_USERNAME\" --data-urlencode \"password=$QBIT_PASSWORD\" >/dev/null\nprintf '{\"ok\":true,\"cookieFile\":\"/tmp/qbit_cookies.txt\"}\n'\n"
+        "path": "commands/download-login.sh",
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; if (typeof v === \"object\") console.log(JSON.stringify(v)); else console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#\\~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nservice_config() { expand_path \"$(json_get paths.serviceConfig)\"; }\napi_key() { node -e 'const c=require(process.argv[1]); console.log(c.services[process.argv[2]].apiKey)' \"$(service_config)\" \"$1\"; }\n: \"${DOWNLOAD_CLIENT_USERNAME:?set DOWNLOAD_CLIENT_USERNAME}\"\n: \"${DOWNLOAD_CLIENT_PASSWORD:?set DOWNLOAD_CLIENT_PASSWORD}\"\nDOWNLOAD_URL=$(json_get backends.downloadClient.url)\ncurl -s -c /tmp/video_fetcher_download_cookies.txt -X POST \"$DOWNLOAD_URL/api/v2/auth/login\" --data-urlencode \"username=$DOWNLOAD_CLIENT_USERNAME\" --data-urlencode \"password=$DOWNLOAD_CLIENT_PASSWORD\" >/dev/null\nprintf '{\"ok\":true,\"cookieFile\":\"/tmp/video_fetcher_download_cookies.txt\"}\\n'\n"
       },
       {
-        "path": "commands/qbit-torrents.sh",
-        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nQBIT_URL=$(json_get services.qbittorrent)\ncurl -s -b /tmp/qbit_cookies.txt \"$QBIT_URL/api/v2/torrents/info\"\n"
+        "path": "commands/list-downloads.sh",
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; if (typeof v === \"object\") console.log(JSON.stringify(v)); else console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#\\~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nservice_config() { expand_path \"$(json_get paths.serviceConfig)\"; }\napi_key() { node -e 'const c=require(process.argv[1]); console.log(c.services[process.argv[2]].apiKey)' \"$(service_config)\" \"$1\"; }\nDOWNLOAD_URL=$(json_get backends.downloadClient.url)\ncurl -s -b /tmp/video_fetcher_download_cookies.txt \"$DOWNLOAD_URL/api/v2/torrents/info\" | node -e 'const fs=require(\"fs\"); const rows=JSON.parse(fs.readFileSync(0,\"utf8\")||\"[]\"); const out=rows.map(t=>({id:t.hash,name:t.name,state:t.state,progress:t.progress,sizeBytes:t.size,category:t.category,savePath:t.save_path,completed:t.progress===1 || [\"stalledUP\",\"uploading\"].includes(t.state)})); console.log(JSON.stringify(out,null,2));'\n"
       },
       {
-        "path": "commands/qbit-add.sh",
-        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nMAGNET=${1:?usage: commands/qbit-add.sh <magnet-uri> <category>}\nCATEGORY=${2:?usage: commands/qbit-add.sh <magnet-uri> <category>}\nQBIT_URL=$(json_get services.qbittorrent)\nDOWNLOAD_STAGING=$(json_get paths.downloadStaging)\ncurl -s -b /tmp/qbit_cookies.txt -H \"Referer: $QBIT_URL\" -X POST \"$QBIT_URL/api/v2/torrents/add\" --data-urlencode \"urls=$MAGNET\" --data-urlencode \"savepath=$DOWNLOAD_STAGING\" --data-urlencode \"category=$CATEGORY\"\nprintf '{\"ok\":true,\"category\":\"%s\",\"savepath\":\"%s\"}\n' \"$CATEGORY\" \"$DOWNLOAD_STAGING\"\n"
+        "path": "commands/add-download.sh",
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; if (typeof v === \"object\") console.log(JSON.stringify(v)); else console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#\\~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nservice_config() { expand_path \"$(json_get paths.serviceConfig)\"; }\napi_key() { node -e 'const c=require(process.argv[1]); console.log(c.services[process.argv[2]].apiKey)' \"$(service_config)\" \"$1\"; }\nDOWNLOAD_URI=${1:?usage: commands/add-download.sh <download-uri> <movie|tv|category>}\nKIND=${2:?usage: commands/add-download.sh <download-uri> <movie|tv|category>}\ncase \"$KIND\" in movie) CATEGORY=radarr ;; tv) CATEGORY=tv-sonarr ;; *) CATEGORY=\"$KIND\" ;; esac\nDOWNLOAD_URL=$(json_get backends.downloadClient.url)\nDOWNLOAD_STAGING=$(json_get paths.downloadStaging)\ncurl -s -b /tmp/video_fetcher_download_cookies.txt -H \"Referer: $DOWNLOAD_URL\" -X POST \"$DOWNLOAD_URL/api/v2/torrents/add\" --data-urlencode \"urls=$DOWNLOAD_URI\" --data-urlencode \"savepath=$DOWNLOAD_STAGING\" --data-urlencode \"category=$CATEGORY\"\nprintf '{\"ok\":true,\"category\":\"%s\",\"savepath\":\"%s\"}\\n' \"$CATEGORY\" \"$DOWNLOAD_STAGING\"\n"
       },
       {
-        "path": "commands/prowlarr-search.sh",
-        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nQUERY=${1:?usage: commands/prowlarr-search.sh <query>}\nPROWLARR_URL=$(json_get services.prowlarr)\nTSARR_CONFIG=$(expand_path \"$(json_get paths.tsarrConfig)\")\nPROWLARR_KEY=$(node -e \"const c=require(process.argv[1]); console.log(c.services.prowlarr.apiKey)\" \"$TSARR_CONFIG\")\nnode -e 'console.log(encodeURIComponent(process.argv.slice(1).join(\" \")))' \"$QUERY\" | { read -r encoded; curl -s \"$PROWLARR_URL/api/v1/search?query=$encoded&type=search&limit=50\" -H \"X-Api-Key: $PROWLARR_KEY\"; }\n"
+        "path": "commands/search-releases.sh",
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; if (typeof v === \"object\") console.log(JSON.stringify(v)); else console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#\\~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nservice_config() { expand_path \"$(json_get paths.serviceConfig)\"; }\napi_key() { node -e 'const c=require(process.argv[1]); console.log(c.services[process.argv[2]].apiKey)' \"$(service_config)\" \"$1\"; }\nQUERY=${1:?usage: commands/search-releases.sh <query>}\nSEARCH_URL=$(json_get backends.releaseSearch.url)\nSEARCH_KEY=$(api_key prowlarr)\nENCODED=$(node -e 'console.log(encodeURIComponent(process.argv.slice(1).join(\" \")))' \"$QUERY\")\ncurl -s \"$SEARCH_URL/api/v1/search?query=$ENCODED&type=search&limit=50\" -H \"X-Api-Key: $SEARCH_KEY\" | node -e 'const fs=require(\"fs\"); const rows=JSON.parse(fs.readFileSync(0,\"utf8\")||\"[]\"); const out=rows.map(r=>{const hash=r.infoHash || ((r.guid||\"\").match(/[A-Fa-f0-9]{40}/)||[])[0]; const downloadUri=r.magnetUrl || (hash ? `magnet:?xt=urn:btih:${hash}&dn=${encodeURIComponent(r.title||\"\")}` : r.downloadUrl || r.guid); return {title:r.title,sizeBytes:r.size,quality:r.quality?.quality?.name || r.quality || null,seeders:r.seeders,indexer:r.indexer,downloadUri,infoHash:hash || null};}); console.log(JSON.stringify(out,null,2));'\n"
       },
       {
-        "path": "commands/sonarr-episodes.sh",
-        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nSERIES_ID=${1:?usage: commands/sonarr-episodes.sh <series-id>}\nSONARR_URL=$(json_get services.sonarr)\nTSARR_CONFIG=$(expand_path \"$(json_get paths.tsarrConfig)\")\nSONARR_KEY=$(node -e \"const c=require(process.argv[1]); console.log(c.services.sonarr.apiKey)\" \"$TSARR_CONFIG\")\ncurl -s \"$SONARR_URL/api/v3/episode?seriesId=$SERIES_ID\" -H \"X-Api-Key: $SONARR_KEY\" | node -e 'const d=require(\"fs\").readFileSync(0,\"utf8\"); const map={}; JSON.parse(d).filter(e=>e.seasonNumber>0).forEach(e=>{const s=String(e.seasonNumber).padStart(2,\"0\"); const ep=String(e.episodeNumber).padStart(2,\"0\"); map[`S${s}E${ep}`]=e.title;}); console.log(JSON.stringify(map,null,2));'\n"
+        "path": "commands/get-episodes.sh",
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; if (typeof v === \"object\") console.log(JSON.stringify(v)); else console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#\\~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nservice_config() { expand_path \"$(json_get paths.serviceConfig)\"; }\napi_key() { node -e 'const c=require(process.argv[1]); console.log(c.services[process.argv[2]].apiKey)' \"$(service_config)\" \"$1\"; }\nSERIES_ID=${1:?usage: commands/get-episodes.sh <series-id>}\nTV_URL=$(json_get backends.tvMetadata.url)\nTV_KEY=$(api_key sonarr)\ncurl -s \"$TV_URL/api/v3/episode?seriesId=$SERIES_ID\" -H \"X-Api-Key: $TV_KEY\" | node -e 'const fs=require(\"fs\"); const rows=JSON.parse(fs.readFileSync(0,\"utf8\")||\"[]\"); const map={}; rows.filter(e=>e.seasonNumber>0).forEach(e=>{const s=String(e.seasonNumber).padStart(2,\"0\"); const ep=String(e.episodeNumber).padStart(2,\"0\"); map[`S${s}E${ep}`]=e.title;}); console.log(JSON.stringify(map,null,2));'\n"
       }
     ]
   },
@@ -303,8 +311,12 @@
   },
   "customSections": [
     {
-      "title": "Settings lookup convention",
-      "content": "Do not hardcode local paths or service URLs in workflow commands. Read them from the committed non-secret settings files:\n\n```bash\nPATHS_JSON=settings.json\nSERVICES_JSON=settings.json\nMOVIE_LIBRARY=$(node -e \"const p=require('./settings.json'); console.log(p.paths.movieLibrary)\")\nTV_LIBRARY=$(node -e \"const p=require('./settings.json'); console.log(p.paths.tvLibrary)\")\nDOWNLOAD_STAGING=$(node -e \"const p=require('./settings.json'); console.log(p.paths.downloadStaging)\")\nTRASH_DIR=$(node -e \"const p=require('./settings.json'); console.log(p.paths.trash)\")\nTSARR_CONFIG=$(node -e \"const p=require('./settings.json'); console.log(p.paths.tsarrConfig)\")\nSONARR_URL=$(node -e \"const s=require('./settings.json'); console.log(s.services.sonarr)\")\nRADARR_URL=$(node -e \"const s=require('./settings.json'); console.log(s.services.radarr)\")\nPROWLARR_URL=$(node -e \"const s=require('./settings.json'); console.log(s.services.prowlarr)\")\nQBIT_URL=$(node -e \"const s=require('./settings.json'); console.log(s.services.qbittorrent)\")\n```\n\nSecrets still come only from untracked config or environment variables. API keys are read from the configured `tsarrConfig` file; qBittorrent credentials come from `QBIT_USERNAME` and `QBIT_PASSWORD`."
+      "title": "Command interface contract",
+      "content": "Use `commands/` as the workflow command surface. Prefer updating command implementations over adding backend-specific curl/API details to this guide.\n\n- stdout: parseable data/result, usually JSON.\n- stderr: diagnostics for humans.\n- exit code: success/failure.\n\nCore commands:\n\n```bash\ncommands/doctor.sh\ncommands/settings.sh [key]\ncommands/search-releases.sh \"Film Title 2160p\"\ncommands/download-login.sh\ncommands/add-download.sh \"$DOWNLOAD_URI\" movie\ncommands/add-download.sh \"$DOWNLOAD_URI\" tv\ncommands/list-downloads.sh\ncommands/get-episodes.sh <series-id>\n```"
+    },
+    {
+      "title": "Current backend implementation",
+      "content": "The command names are workflow-oriented and should remain stable. The current command implementations use these configured backend types from `settings.json`: release search, download client, TV metadata, and movie metadata. If a backend changes, update `settings.json` and the relevant command implementation rather than changing the workflow steps."
     },
     {
       "title": "Quality preferences",
@@ -312,19 +324,11 @@
     },
     {
       "title": "File naming rules",
-      "content": "### Movies\n\n- Folder: `Movie Title (Year)/`\n- File: `Movie Title (Year).ext`\n- Multiple versions: `Movie Title (Year) - 1080p.mkv` / `Movie Title (Year) - 2160p.mkv`\n\n### TV — Star Trek abbreviations\n\n| Show | Abbrev | Sonarr ID |\n|------|--------|-----------|\n| The Original Series | TOS | 4 |\n| The Next Generation | TNG | 11 |\n| Deep Space Nine | DS9 | 7 |\n| Voyager | VOY | 5 |\n| Enterprise | ENT | 8 |\n| Discovery | DIS | 9 |\n| Picard | PIC | 10 |\n| Strange New Worlds | SNW | 2 |\n\nFormat: `ABBREV - S01E01 - Episode Title.ext`\n\nFolder root comes from `settings.json:paths.tvLibrary`. For Star Trek, use the Star Trek subfolders under that configured TV library root.\n\n### General TV\n\nFormat: `Show Name - S01E01 - Episode Title.ext`\n\n### Naming rules\n\n- Do not use regex/scripts to blindly rename — the LLM does renaming directly by looking at filenames and using judgment.\n- Strip quality/group tags: `1080p`, `2160p`, `BluRay`, `x265`, `HEVC`, `Joy`, `RARBG`, `[TGx]`, `-GroupName`, etc.\n- Replace dots/underscores with spaces.\n- Delete bonus/featurette files with no SxxExx pattern.\n- Keep `.srt`/`.sub` subtitles, rename to match video.\n\n### Combined two-part episodes\n\nWhen two episodes are combined into one file, name as `ABBREV - S01E01E02 - Title.mkv` with no part suffix.\n\nDetection: a file about 2x the median size of other episodes in the season is likely a combined two-parter.\n\n### Season pack numbering offset\n\nSome source packs number a double-episode opener as `e01` rather than `e01e02`. This shifts every subsequent episode down by one. Always cross-reference a few episode titles against Sonarr when processing a season pack. If there is an offset, rename highest-to-lowest to avoid collisions."
-    },
-    {
-      "title": "Service API workflow details",
-      "content": "### Load settings and API keys\n\n```bash\nexport TSARR_CONFIG=$(node -e \"const p=require('./settings.json'); console.log(p.paths.tsarrConfig)\")\nSONARR_URL=$(node -e \"const s=require('./settings.json'); console.log(s.services.sonarr)\")\nRADARR_URL=$(node -e \"const s=require('./settings.json'); console.log(s.services.radarr)\")\nPROWLARR_URL=$(node -e \"const s=require('./settings.json'); console.log(s.services.prowlarr)\")\nQBIT_URL=$(node -e \"const s=require('./settings.json'); console.log(s.services.qbittorrent)\")\nSONARR_KEY=$(node -e \"const c=require(process.env.TSARR_CONFIG.replace(/^~(?=/)/, process.env.HOME)); console.log(c.services.sonarr.apiKey)\")\nRADARR_KEY=$(node -e \"const c=require(process.env.TSARR_CONFIG.replace(/^~(?=/)/, process.env.HOME)); console.log(c.services.radarr.apiKey)\")\nPROWLARR_KEY=$(node -e \"const c=require(process.env.TSARR_CONFIG.replace(/^~(?=/)/, process.env.HOME)); console.log(c.services.prowlarr.apiKey)\")\n```\n\n### Starting a session\n\nAlways start by checking for completed downloads and running the monitor loop. Log in to qBittorrent using environment credentials:\n\n```bash\n: \"${QBIT_USERNAME:?set QBIT_USERNAME}\"\n: \"${QBIT_PASSWORD:?set QBIT_PASSWORD}\"\ncurl -s -c /tmp/qbit_cookies.txt -X POST \"$QBIT_URL/api/v2/auth/login\" \\\n  --data-urlencode \"username=$QBIT_USERNAME\" \\\n  --data-urlencode \"password=$QBIT_PASSWORD\"\n```\n\n### Searching for releases\n\nNever use `tsarr prowlarr search run` when magnet links are needed. Use the Prowlarr API directly:\n\n```bash\ncurl -s \"$PROWLARR_URL/api/v1/search?query=Film+Title+2160p&type=search&limit=50\" \\\n  -H \"X-Api-Key: $PROWLARR_KEY\"\n```\n\nGetting the magnet URI:\n\n1. `infoHash` field → construct `magnet:?xt=urn:btih:HASH&dn=Title`.\n2. No `infoHash`, but `guid` URL has a hash → extract hash from URL.\n3. Has `magnetUrl` proxy → follow redirect and read the `Location` header.\n\nAlways use the full 40-character infoHash when constructing magnet URIs.\n\n### Adding to qBittorrent\n\nUse the configured download staging path from `settings.json:paths.downloadStaging`:\n\n```bash\nDOWNLOAD_STAGING=$(node -e \"const p=require('./settings.json'); console.log(p.paths.downloadStaging)\")\ncurl -s -b /tmp/qbit_cookies.txt \\\n  -H \"Referer: $QBIT_URL\" \\\n  -X POST \"$QBIT_URL/api/v2/torrents/add\" \\\n  --data-urlencode \"urls=magnet:?xt=urn:btih:HASH&dn=Title\" \\\n  --data-urlencode \"savepath=$DOWNLOAD_STAGING\" \\\n  --data-urlencode \"category=radarr\"\n```\n\nUse category `tv-sonarr` for TV.\n\n### Sonarr episode titles\n\nUse Sonarr as source of truth for episode titles:\n\n```bash\ncurl -s \"$SONARR_URL/api/v3/episode?seriesId=5\" \\\n  -H \"X-Api-Key: $SONARR_KEY\" | node -e \"\nconst d=require('fs').readFileSync('/dev/stdin','utf8');\nconst map={};\nJSON.parse(d).filter(e=>e.seasonNumber>0).forEach(e=>{\n  const s=String(e.seasonNumber).padStart(2,'0');\n  const ep=String(e.episodeNumber).padStart(2,'0');\n  map['S'+s+'E'+ep]=e.title;\n});\nconsole.log(JSON.stringify(map));\n\"\n```"
+      "content": "### Movies\n\n- Folder: `Movie Title (Year)/`\n- File: `Movie Title (Year).ext`\n- Multiple versions: `Movie Title (Year) - 1080p.mkv` / `Movie Title (Year) - 2160p.mkv`\n\n### TV — Star Trek abbreviations\n\n| Show | Abbrev | Metadata ID |\n|------|--------|-------------|\n| The Original Series | TOS | 4 |\n| The Next Generation | TNG | 11 |\n| Deep Space Nine | DS9 | 7 |\n| Voyager | VOY | 5 |\n| Enterprise | ENT | 8 |\n| Discovery | DIS | 9 |\n| Picard | PIC | 10 |\n| Strange New Worlds | SNW | 2 |\n\nFormat: `ABBREV - S01E01 - Episode Title.ext`\n\nFolder root comes from `settings.json:paths.tvLibrary`. For Star Trek, use the Star Trek subfolders under that configured TV library root.\n\n### General TV\n\nFormat: `Show Name - S01E01 - Episode Title.ext`\n\n### Naming rules\n\n- Do not use regex/scripts to blindly rename — the LLM does renaming directly by looking at filenames and using judgment.\n- Strip quality/group tags: `1080p`, `2160p`, `BluRay`, `x265`, `HEVC`, `Joy`, `RARBG`, `[TGx]`, `-GroupName`, etc.\n- Replace dots/underscores with spaces.\n- Delete bonus/featurette files with no SxxExx pattern.\n- Keep `.srt`/`.sub` subtitles, rename to match video.\n\n### Combined two-part episodes\n\nWhen two episodes are combined into one file, name as `ABBREV - S01E01E02 - Title.mkv` with no part suffix. A file about 2x the median size of other episodes in the season is likely a combined two-parter.\n\n### Season pack numbering offset\n\nSome source packs number a double-episode opener as `e01` rather than `e01e02`. This shifts every subsequent episode down by one. Always cross-reference a few episode titles with `commands/get-episodes.sh <series-id>`. If there is an offset, rename highest-to-lowest to avoid collisions."
     },
     {
       "title": "Monitoring loop and cleanup",
-      "content": "The agent runs the monitoring loop directly, not as a background script. Sleep 10 minutes between checks so the LLM can handle renaming intelligently when things complete.\n\nLoop:\n\n1. Check qBittorrent for completed torrents: `stalledUP`, `uploading`, or `progress=1.0`.\n2. For each completed torrent:\n   - inspect files\n   - determine correct Plex names using judgment\n   - publish to the configured movie/TV library path\n   - verify destination exists\n   - move the source folder/file to the configured trash path\n   - delete torrent from qBittorrent\n   - preserve local evidence under `projects/<job-id>/evidence/`, then archive it under `projects/archive/<job-id>/`\n3. If a torrent has no progress for 3+ checks, find an alternative, swap automatically, and inform the user after the fact.\n4. Never pause mid-download to ask permission.\n\nNever `rm -rf`. Always move processed sources to the configured trash path after verifying destination files exist."
-    },
-    {
-      "title": "Known tsarr limitations",
-      "content": "| Gap | Workaround |\n|-----|------------|\n| `tsarr prowlarr search run` does not return magnet links | Use Prowlarr API directly |\n| `tsarr qbit torrents` has no add command | Use qBittorrent API directly with cookie auth |\n| No rescan command | Use Radarr/Sonarr API directly |\n\nqBittorrent may have local auth bypass configured for service integrations, but direct API calls still need cookie auth using environment credentials."
+      "content": "The agent runs the monitoring loop directly, not as a background script. Sleep 10 minutes between checks so the LLM can handle renaming intelligently when things complete.\n\nLoop:\n\n1. Use `commands/list-downloads.sh` to check for completed downloads.\n2. For each completed download:\n   - inspect files\n   - determine correct Plex names using judgment\n   - publish to the configured movie/TV library path\n   - verify destination exists\n   - move the source folder/file to the configured trash path\n   - remove the download from the download client using the backend UI/API if needed\n   - preserve local evidence under `projects/<job-id>/evidence/`, then archive it under `projects/archive/<job-id>/`\n3. If a download has no progress for 3+ checks, find an alternative, swap automatically, and inform the user after the fact.\n4. Never pause mid-download to ask permission.\n\nNever `rm -rf`. Always move processed sources to the configured trash path after verifying destination files exist."
     }
   ]
 }

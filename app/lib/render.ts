@@ -54,19 +54,27 @@ function customSections(spec: WorkflowAgentSpec): string {
 
 function startupCheck(spec: WorkflowAgentSpec): string {
   const d = spec.dependencies;
-  const checks = [
-    ...(d.externalTools ?? []).map((tool) => {
-      const verify = tool.verifyAny?.length
-        ? tool.verifyAny.map((check) => `${check.name}: \`${check.command}\``).join(' OR ')
-        : tool.verify ? `\`${tool.verify}\`` : 'verify installed';
-      return `- [ ] ${tool.name}: ${verify}`;
-    }),
-    ...(d.localConfig ?? []).map((cfg) => `- [ ] Config exists: \`${cfg.path}\`${cfg.containsSecrets ? ' (secret-bearing, never commit)' : ''}`),
-    ...(d.environmentVariables ?? []).map((env) => `- [ ] Environment variable set: \`${env.name}\`${env.containsSecrets ? ' (secret)' : ''}`),
-    ...(d.filesystemPaths ?? []).map((p) => `- [ ] Path available: \`${p.path}\``),
-    ...(d.services ?? []).map((svc) => `- [ ] Service reachable: ${svc.name}${svc.url ? ` at \`${svc.url}\`` : ''}`),
+  const toolLine = (tool: DependencyItem) => {
+    const verify = tool.verifyAny?.length
+      ? tool.verifyAny.map((check) => `${check.name}: \`${check.command}\``).join(' OR ')
+      : tool.verify ? `\`${tool.verify}\`` : 'verify installed';
+    return `- [ ] ${tool.name}: ${verify}`;
+  };
+  const required = [
+    ...(d.externalTools ?? []).filter((tool) => tool.required !== false).map(toolLine),
+    ...(d.localConfig ?? []).filter((cfg) => cfg.required !== false).map((cfg) => `- [ ] Config exists: \`${cfg.path}\`${cfg.containsSecrets ? ' (secret-bearing, never commit)' : ''}`),
+    ...(d.environmentVariables ?? []).filter((env) => env.required !== false).map((env) => `- [ ] Environment variable set: \`${env.name}\`${env.containsSecrets ? ' (secret)' : ''}`),
+    ...(d.filesystemPaths ?? []).filter((p) => p.required !== false).map((p) => `- [ ] Path available: \`${p.path}\``),
+    ...(d.services ?? []).filter((svc) => svc.required !== false).map((svc) => `- [ ] Service reachable: ${svc.name}${svc.url ? ` at \`${svc.url}\`` : ''}`),
   ];
-  return `## Startup dependency check\n\n${checks.length ? checks.join('\n') : '- [ ] No checks declared.'}\n`;
+  const optional = [
+    ...(d.externalTools ?? []).filter((tool) => tool.required === false).map(toolLine),
+    ...(d.localConfig ?? []).filter((cfg) => cfg.required === false).map((cfg) => `- [ ] Config exists if used: \`${cfg.path}\``),
+    ...(d.environmentVariables ?? []).filter((env) => env.required === false).map((env) => `- [ ] Environment variable set if used: \`${env.name}\`${env.containsSecrets ? ' (secret)' : ''}`),
+    ...(d.filesystemPaths ?? []).filter((p) => p.required === false).map((p) => `- [ ] Path available if used: \`${p.path}\``),
+    ...(d.services ?? []).filter((svc) => svc.required === false).map((svc) => `- [ ] Service reachable if used: ${svc.name}${svc.url ? ` at \`${svc.url}\`` : ''}`),
+  ];
+  return `## Startup dependency check\n\n### Required\n\n${required.length ? required.join('\n') : '- [ ] No required checks declared.'}\n\n### Optional\n\n${optional.length ? optional.join('\n') : '- None declared.'}\n`;
 }
 
 export function renderAgents(spec: WorkflowAgentSpec): string {
