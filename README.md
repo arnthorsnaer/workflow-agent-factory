@@ -2,7 +2,7 @@
 
 Generate workflow-agent repositories for repeatable LLM-operated workflows.
 
-A generated workflow agent is defined by explicit dependencies, tools, processing locations, evidence policy, cleanup rules, safety boundaries, and git hygiene.
+A generated workflow agent is defined by explicit dependencies, workflow steps, utilities, internal tools, processing locations, evidence policy, cleanup rules, safety boundaries, settings, and git hygiene.
 
 ## Install/use
 
@@ -15,20 +15,20 @@ bun --version
 Generate an agent from a JSON spec:
 
 ```bash
-bun run create examples/video-fetcher-agent.json --out ../video-fetcher-agent-v2
-bun run create examples/stl-to-gcode-agent.json --out ../stl-to-gcode-agent-v2
+bun run create examples/external-service-workflow.json --out ../external-service-workflow-agent
+bun run create examples/internal-tool-workflow.json --out ../internal-tool-workflow-agent
 ```
 
 Overwrite generated files/copy targets in a non-empty output directory:
 
 ```bash
-bun run create examples/stl-to-gcode-agent.json --out ../stl-to-gcode-agent-v2 --force
+bun run create examples/internal-tool-workflow.json --out ../internal-tool-workflow-agent --force
 ```
 
 Compare an existing agent and generated agent:
 
 ```bash
-bun run compare ../stl-to-gcode-agent ../stl-to-gcode-agent-v2
+bun run compare ../existing-agent ../generated-agent
 ```
 
 ## Spec model
@@ -50,8 +50,8 @@ Each spec must declare:
   - where files being processed live: `internal`, `external`, or `mixed`
   - evidence files/policy
   - cleanup rules
-- hard boundaries, workflows, safety rules, and known limitations
-- optional scaffold copy rules for internal tools/assets
+- workflow steps, utilities, hard boundaries, workflows, safety rules, and known limitations
+- optional scaffold copy/file/replacement rules for internal tools/assets
 
 ## Standard directories
 
@@ -65,6 +65,7 @@ tools/<tool>/app/cli/  internal tool CLI entrypoints
 tools/<tool>/app/lib/  internal reusable tool code
 projects/              local processing/evidence workspace
 projects/archive/      local archived evidence
+.factory/              generated metadata for traceability only
 ```
 
 ## Generated files
@@ -76,12 +77,12 @@ AGENTS.md
 README.md
 .gitignore
 .factory/workflow-agent.generated.json
-commands/doctor.sh
+utilities/doctor.sh
 projects/.gitkeep
 projects/archive/.gitkeep
 ```
 
-If `scaffold.copy` is present, it also copies declared internal tools/assets into the generated repo.
+It may also write spec-declared `settings.json`, `.env.example`, `workflow/*`, `utilities/*`, and `tools/*` files.
 
 ## Git policy
 
@@ -100,11 +101,15 @@ Editable settings should be stored only in root-level `settings.json`. Generated
 
 If a generated agent has a user-editable value, the factory should choose one source of truth:
 
-- paths and service URLs: `settings/*.json`
-- non-secret workflow settings: `settings/`
+- paths and service URLs: `settings.json`
+- other non-secret workflow settings: `settings.json`
 - secrets: environment variables or untracked local config
 - generated docs/manifests/scripts: references to settings keys, not duplicated values
 
-Example: use `settings.json:paths.downloadStaging`, not a hardcoded download path in `AGENTS.md`.
+Example: use `settings.json:paths.output`, not a hardcoded output path in `AGENTS.md`.
 
 When a dependency or service has a safe CLI start/status/check command, model that command explicitly in `settings.json` and encapsulate it in `workflow/` or `utilities/`. The agent should run commands, not memorize ad-hoc service startup procedures.
+
+## License
+
+MIT

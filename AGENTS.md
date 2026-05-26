@@ -1,6 +1,6 @@
 # workflow-agent-factory — Agent Operating Guide
 
-This repository creates workflow-agent directories: repeatable LLM-operated workflows with explicit dependencies, tools, processing rules, evidence, cleanup, git hygiene, and optional internal tooling.
+This repository creates workflow-agent directories: repeatable LLM-operated workflows with explicit dependencies, tools, processing rules, evidence, cleanup, git hygiene, settings, and optional internal tooling.
 
 ## Core model
 
@@ -17,7 +17,7 @@ Do not categorize agents as instruction-only or tool-backed. Every workflow agen
 
 Generated agents use these standard directories:
 
-- `settings/` — committed, non-secret workflow settings/configuration.
+- `settings.json` — committed, non-secret workflow settings/configuration.
 - `workflow/` — ordered workflow step commands that map to numbered steps in AGENTS.md.
 - `utilities/` — support/diagnostic/helper commands that are not main workflow steps.
 - `tools/` — internal tool implementations/packages.
@@ -25,6 +25,7 @@ Generated agents use these standard directories:
 - `tools/<tool>/app/lib/` — internal reusable tool code.
 - `projects/` — local processing/evidence workspace.
 - `projects/archive/` — local archived evidence.
+- `.factory/` — generated metadata for traceability only.
 
 The only useful distinction is whether each dependency is owned by the repo or expected to exist outside it.
 
@@ -33,9 +34,9 @@ The only useful distinction is whether each dependency is owned by the repo or e
 - Never commit credentials, tokens, API keys, cookies, local service config, or real environment files.
 - Never commit files being processed by a generated workflow agent.
 - Evidence/archive data is ignored by default because it may contain private paths, titles, URLs, release names, or decisions.
-- Generated agents should commit only workflow instructions, internal tooling, templates, checked-in profiles/configs, and sanitized examples.
+- Generated agents should commit only workflow instructions, internal tooling, templates, checked-in config, and sanitized examples.
 - Preserve user-created source agents unless explicitly replacing them after approval.
-- Avoid multiple sources of truth. If a value is user-editable, store it in exactly one settings file and reference that file/key everywhere else, e.g. `settings.json:paths.movieLibrary`.
+- Avoid multiple sources of truth. If a value is user-editable, store it in exactly one settings file and reference that file/key everywhere else, e.g. `settings.json:paths.output`.
 - Prefer executable command interfaces over prose-only operational instructions. If a dependency/service has a safe CLI start/status/check command, put it in `settings.json` and have workflow/utilities commands use it instead of asking the agent to remember manual steps.
 - Do not duplicate editable setting values in generated docs, generated manifests, scripts, or examples unless the target file is the source-of-truth settings file itself.
 
@@ -45,7 +46,7 @@ The only useful distinction is whether each dependency is owned by the repo or e
 2. Declare all dependencies explicitly.
 3. Declare where files being processed live:
    - `internal`: under the generated repo, e.g. `projects/<job-id>/todo`.
-   - `external`: outside the repo, e.g. `~/Downloads/incoming`.
+   - `external`: outside the repo, referenced through `settings.json`.
    - `mixed`: both.
 4. Declare evidence and cleanup behavior.
 5. Generate the workflow agent:
@@ -85,5 +86,5 @@ After successful external publish, cleanup should remove/trash processing files 
 
 ## Current example specs
 
-- `examples/video-fetcher-agent.json` — external processing in `~/Downloads/incoming/`, local ignored evidence only.
-- `examples/stl-to-gcode-agent.json` — internal `projects/<id>/todo|in-process|done` processing, numbered workflow wrappers under `workflow/`, helper commands under `utilities/`, internal tooling under `tools/stl-to-gcode/`, root `settings.json`, and committed PrusaSlicer config under `tools/stl-to-gcode/tool-config/prusa-slicer`.
+- `examples/external-service-workflow.json` — generic external-service workflow with stable workflow commands and helper utilities.
+- `examples/internal-tool-workflow.json` — generic internal-tool workflow with implementation code under `tools/`.
