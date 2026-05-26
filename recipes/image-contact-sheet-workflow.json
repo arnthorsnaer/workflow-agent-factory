@@ -1,0 +1,202 @@
+{
+  "name": "image-contact-sheet-agent",
+  "description": "Workflow agent that transforms a local image folder into an HTML contact sheet using an internal tool.",
+  "mission": [
+    "Scan a local image folder without committing source images.",
+    "Generate a local contact-sheet HTML file.",
+    "Preserve lightweight evidence and keep generated project files ignored by git."
+  ],
+  "dependencies": {
+    "externalTools": [
+      {
+        "name": "node",
+        "purpose": "Run the internal image contact-sheet tool.",
+        "required": true,
+        "verify": "node --version"
+      }
+    ],
+    "internalTools": [
+      {
+        "name": "import-images",
+        "command": "workflow/01-import-images.sh <image-directory>",
+        "purpose": "Step 1: Scan image files and create a project manifest."
+      },
+      {
+        "name": "build-contact-sheet",
+        "command": "workflow/02-build-contact-sheet.sh <job-id>",
+        "purpose": "Step 2: Generate an HTML contact sheet from the manifest."
+      }
+    ],
+    "services": [],
+    "localConfig": [],
+    "environmentVariables": [],
+    "filesystemPaths": [
+      {
+        "path": "settings.json:internalTools.imageContactSheet.root",
+        "purpose": "Internal tool root.",
+        "required": true,
+        "gitPolicy": "tracked non-secret setting"
+      }
+    ],
+    "trackedAssets": [
+      {
+        "path": "settings.json",
+        "purpose": "Editable non-secret workflow settings.",
+        "required": true,
+        "gitPolicy": "tracked"
+      },
+      {
+        "path": "tools/image-contact-sheet/cli.js",
+        "purpose": "Internal transformation tool.",
+        "required": true,
+        "gitPolicy": "tracked"
+      }
+    ],
+    "generatedArtifacts": [
+      {
+        "path": "projects/*/in-process/",
+        "purpose": "Generated manifests, ignored by default.",
+        "gitPolicy": "ignored"
+      },
+      {
+        "path": "projects/*/done/",
+        "purpose": "Generated contact sheets, ignored by default.",
+        "gitPolicy": "ignored"
+      },
+      {
+        "path": "projects/*/evidence/",
+        "purpose": "Local evidence, ignored by default.",
+        "gitPolicy": "ignored"
+      }
+    ]
+  },
+  "processing": {
+    "projectRoot": "projects",
+    "archiveRoot": "projects/archive",
+    "filesBeingProcessed": {
+      "location": "mixed",
+      "internalStages": [
+        "in-process",
+        "done"
+      ],
+      "externalPaths": [
+        "source image folder"
+      ],
+      "neverCommit": true
+    },
+    "evidence": {
+      "enabled": true,
+      "commitPolicy": "ignored by default",
+      "archiveAfterCompletion": true,
+      "files": [
+        "manifest.json",
+        "outputs.json"
+      ]
+    },
+    "cleanup": {
+      "afterPublish": true,
+      "removeOrTrashProcessingFiles": false,
+      "preserveEvidenceOnly": true
+    }
+  },
+  "hardBoundaries": [
+    "Never commit source images or generated contact sheets.",
+    "Keep implementation details in tools/image-contact-sheet or workflow commands."
+  ],
+  "standardWorkflow": [
+    "Run utilities/doctor.sh.",
+    "Run workflow/01-import-images.sh <image-directory>.",
+    "Run workflow/02-build-contact-sheet.sh <job-id>."
+  ],
+  "fallbackWorkflow": [
+    "If image handling changes, update tools/image-contact-sheet and keep workflow command names stable."
+  ],
+  "safetyRules": [
+    "Command stdout is JSON data for the agent; stderr is diagnostics."
+  ],
+  "knownLimitations": [
+    "The generated contact sheet references local image paths; it does not copy or publish source images."
+  ],
+  "scaffold": {
+    "createDirs": [
+      "projects",
+      "projects/archive",
+      "workflow",
+      "utilities",
+      "tools/image-contact-sheet"
+    ],
+    "files": [
+      {
+        "path": "settings.json",
+        "json": {
+          "internalTools": {
+            "imageContactSheet": {
+              "root": "tools/image-contact-sheet"
+            }
+          }
+        }
+      },
+      {
+        "path": ".env.example",
+        "content": "# No required environment variables for this recipe.\n"
+      },
+      {
+        "path": "tools/image-contact-sheet/cli.js",
+        "content": "#!/usr/bin/env node\nconst fs = require(\"fs\");\nconst path = require(\"path\");\nconst root = path.resolve(__dirname, \"..\", \"..\");\nconst projectsRoot = path.join(root, \"projects\");\nconst imageExt = /\\.(png|jpe?g|gif|webp|svg)$/i;\nfunction safeId(value) { return value.toLowerCase().replace(/[^a-z0-9]+/g, \"-\").replace(/^-|-$/g, \"\").slice(0, 80) || \"images\"; }\nfunction ensureDir(dir) { fs.mkdirSync(dir, { recursive: true }); }\nfunction files(dir) { return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => { const full = path.join(dir, entry.name); if (entry.isDirectory()) return files(full); return imageExt.test(entry.name) ? [full] : []; }); }\nfunction project(id) { return { dir: path.join(projectsRoot, id), inProcess: path.join(projectsRoot, id, \"in-process\"), done: path.join(projectsRoot, id, \"done\"), evidence: path.join(projectsRoot, id, \"evidence\") }; }\nconst [cmd, arg] = process.argv.slice(2);\nif (cmd === \"import\") {\n  if (!arg) { console.error(\"usage: cli.js import <image-directory>\"); process.exit(1); }\n  const source = path.resolve(arg);\n  const id = safeId(path.basename(source)) + \"-\" + new Date().toISOString().slice(0,10).replace(/-/g, \"\");\n  const p = project(id); ensureDir(p.inProcess); ensureDir(p.evidence);\n  const images = files(source).map((file) => ({ path: file, relativePath: path.relative(source, file), bytes: fs.statSync(file).size }));\n  const manifest = { id, source, imageCount: images.length, images };\n  fs.writeFileSync(path.join(p.inProcess, \"images.json\"), JSON.stringify(manifest, null, 2) + \"\\n\");\n  fs.writeFileSync(path.join(p.evidence, \"manifest.json\"), JSON.stringify({ id, source, imageCount: images.length, createdAt: new Date().toISOString() }, null, 2) + \"\\n\");\n  console.log(JSON.stringify({ jobId: id, imageCount: images.length }));\n} else if (cmd === \"build\") {\n  if (!arg) { console.error(\"usage: cli.js build <job-id>\"); process.exit(1); }\n  const p = project(arg);\n  const manifest = JSON.parse(fs.readFileSync(path.join(p.inProcess, \"images.json\"), \"utf8\"));\n  ensureDir(p.done);\n  const cards = manifest.images.map((img) => \"<figure><img src=\\\"file://\" + img.path + \"\\\" loading=\\\"lazy\\\"><figcaption>\" + img.relativePath + \"</figcaption></figure>\").join(\"\\n\");\n  const html = \"<!doctype html><meta charset=\\\"utf-8\\\"><title>Contact sheet \" + manifest.id + \"</title><style>body{font-family:sans-serif}main{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1rem}img{max-width:100%;height:140px;object-fit:contain;border:1px solid #ddd}figcaption{font-size:12px;overflow-wrap:anywhere}</style><h1>Contact sheet</h1><p>\" + manifest.imageCount + \" images from \" + manifest.source + \"</p><main>\" + cards + \"</main>\";\n  const out = path.join(p.done, \"contact-sheet.html\");\n  fs.writeFileSync(out, html);\n  fs.writeFileSync(path.join(p.evidence, \"outputs.json\"), JSON.stringify({ output: out, imageCount: manifest.imageCount, finishedAt: new Date().toISOString() }, null, 2) + \"\\n\");\n  console.log(JSON.stringify({ ok: true, output: out, imageCount: manifest.imageCount }));\n} else { console.error(\"usage: cli.js <import|build> ...\"); process.exit(1); }\n"
+      },
+      {
+        "path": "workflow/01-import-images.sh",
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\nDIR=${1:?usage: workflow/01-import-images.sh <image-directory>}\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nnode \"$ROOT/tools/image-contact-sheet/cli.js\" import \"$DIR\"\n"
+      },
+      {
+        "path": "workflow/02-build-contact-sheet.sh",
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\nJOB_ID=${1:?usage: workflow/02-build-contact-sheet.sh <job-id>}\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nnode \"$ROOT/tools/image-contact-sheet/cli.js\" build \"$JOB_ID\"\n"
+      }
+    ]
+  },
+  "doctor": {
+    "pathSettings": [
+      {
+        "file": "settings.json",
+        "objectPath": "internalTools.imageContactSheet"
+      }
+    ]
+  },
+  "workflowSteps": [
+    {
+      "step": "0",
+      "title": "Verify dependencies and settings",
+      "command": "utilities/doctor.sh",
+      "description": "Run this before operating the workflow."
+    },
+    {
+      "step": "1",
+      "title": "Import image folder",
+      "command": "workflow/01-import-images.sh <image-directory>",
+      "description": "Scan images and create a project manifest."
+    },
+    {
+      "step": "2",
+      "title": "Build contact sheet",
+      "command": "workflow/02-build-contact-sheet.sh <job-id>",
+      "description": "Generate an HTML contact sheet from the manifest."
+    }
+  ],
+  "utilityCommands": [
+    {
+      "name": "doctor",
+      "command": "utilities/doctor.sh",
+      "purpose": "Verify dependencies and settings."
+    }
+  ],
+  "customSections": [
+    {
+      "title": "Transformation",
+      "content": "Input: a local folder of images. Output: `projects/<job-id>/done/contact-sheet.html` plus ignored local evidence."
+    }
+  ],
+  "git": {
+    "visibility": "public",
+    "extraIgnore": []
+  }
+}

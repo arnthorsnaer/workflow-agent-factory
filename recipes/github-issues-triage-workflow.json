@@ -1,0 +1,222 @@
+{
+  "name": "github-issues-triage-agent",
+  "description": "Workflow agent that transforms GitHub issue data into a local triage summary report.",
+  "mission": [
+    "Fetch issues from a configured GitHub repository.",
+    "Normalize issue data into local project files.",
+    "Generate a Markdown triage summary.",
+    "Preserve evidence without committing generated issue snapshots."
+  ],
+  "dependencies": {
+    "externalTools": [
+      {
+        "name": "gh",
+        "purpose": "Fetch GitHub issues through the GitHub CLI.",
+        "required": true,
+        "verify": "gh --version"
+      },
+      {
+        "name": "node",
+        "purpose": "Normalize issue JSON and render Markdown.",
+        "required": true,
+        "verify": "node --version"
+      }
+    ],
+    "internalTools": [
+      {
+        "name": "fetch-issues",
+        "command": "workflow/01-fetch-issues.sh",
+        "purpose": "Step 1: Fetch issues into a project snapshot."
+      },
+      {
+        "name": "build-summary",
+        "command": "workflow/02-build-summary.sh <job-id>",
+        "purpose": "Step 2: Generate a Markdown triage summary."
+      }
+    ],
+    "services": [
+      {
+        "name": "GitHub",
+        "url": "settings.json:github.repo",
+        "purpose": "Issue source repository configured as owner/name.",
+        "required": true,
+        "verify": "Use workflow/01-fetch-issues.sh."
+      }
+    ],
+    "localConfig": [],
+    "environmentVariables": [
+      {
+        "name": "GITHUB_TOKEN",
+        "purpose": "Optional token used by gh if not already authenticated.",
+        "required": false,
+        "containsSecrets": true
+      }
+    ],
+    "filesystemPaths": [
+      {
+        "path": "settings.json:paths.outputRoot",
+        "purpose": "Local project/evidence root.",
+        "required": true,
+        "gitPolicy": "tracked non-secret setting"
+      }
+    ],
+    "trackedAssets": [
+      {
+        "path": "settings.json",
+        "purpose": "Editable non-secret workflow settings.",
+        "required": true,
+        "gitPolicy": "tracked"
+      }
+    ],
+    "generatedArtifacts": [
+      {
+        "path": "projects/*/in-process/",
+        "purpose": "Fetched issue snapshots, ignored by default.",
+        "gitPolicy": "ignored"
+      },
+      {
+        "path": "projects/*/done/",
+        "purpose": "Generated reports, ignored by default.",
+        "gitPolicy": "ignored"
+      },
+      {
+        "path": "projects/*/evidence/",
+        "purpose": "Local evidence, ignored by default.",
+        "gitPolicy": "ignored"
+      }
+    ]
+  },
+  "processing": {
+    "projectRoot": "projects",
+    "archiveRoot": "projects/archive",
+    "filesBeingProcessed": {
+      "location": "internal",
+      "internalStages": [
+        "in-process",
+        "done"
+      ],
+      "neverCommit": true
+    },
+    "evidence": {
+      "enabled": true,
+      "commitPolicy": "ignored by default",
+      "archiveAfterCompletion": true,
+      "files": [
+        "manifest.json",
+        "outputs.json"
+      ]
+    },
+    "cleanup": {
+      "afterPublish": true,
+      "removeOrTrashProcessingFiles": false,
+      "preserveEvidenceOnly": true
+    }
+  },
+  "hardBoundaries": [
+    "Do not mutate GitHub issues in this recipe; it is read-only.",
+    "Never commit generated issue snapshots or reports unless intentionally sanitized."
+  ],
+  "standardWorkflow": [
+    "Run utilities/doctor.sh.",
+    "Run workflow/01-fetch-issues.sh.",
+    "Run workflow/02-build-summary.sh <job-id>."
+  ],
+  "fallbackWorkflow": [
+    "If GitHub CLI auth is missing, run gh auth login outside the workflow or provide GITHUB_TOKEN locally."
+  ],
+  "safetyRules": [
+    "Command stdout is JSON data for the agent; stderr is diagnostics."
+  ],
+  "knownLimitations": [
+    "This recipe reads open issues only and produces a local summary; it does not apply labels or comments."
+  ],
+  "scaffold": {
+    "createDirs": [
+      "projects",
+      "projects/archive",
+      "workflow",
+      "utilities"
+    ],
+    "files": [
+      {
+        "path": "settings.json",
+        "json": {
+          "github": {
+            "repo": "owner/repository",
+            "state": "open",
+            "limit": 50
+          },
+          "paths": {
+            "outputRoot": "./projects"
+          }
+        }
+      },
+      {
+        "path": ".env.example",
+        "content": "# Optional if gh is not already authenticated.\nGITHUB_TOKEN=\n"
+      },
+      {
+        "path": "utilities/settings.sh",
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\nif [ \"$#\" -eq 0 ]; then cat \"$SETTINGS\"; else node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); let v=data; for (const p of process.argv[2].split(\".\")) v=v[p]; console.log(typeof v === \"object\" ? JSON.stringify(v) : v);' \"$SETTINGS\" \"$1\"; fi\n"
+      },
+      {
+        "path": "workflow/01-fetch-issues.sh",
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nREPO=$(node -e 'const s=require(process.argv[1]); console.log(s.github.repo)' \"$ROOT/settings.json\")\nSTATE=$(node -e 'const s=require(process.argv[1]); console.log(s.github.state || \"open\")' \"$ROOT/settings.json\")\nLIMIT=$(node -e 'const s=require(process.argv[1]); console.log(s.github.limit || 50)' \"$ROOT/settings.json\")\nJOB_ID=$(printf \"%s-%s\" \"$(echo \"$REPO\" | tr '/' '-')\" \"$(date +%Y%m%d%H%M%S)\")\nDIR=\"$ROOT/projects/$JOB_ID\"\nmkdir -p \"$DIR/in-process\" \"$DIR/evidence\"\ngh issue list --repo \"$REPO\" --state \"$STATE\" --limit \"$LIMIT\" --json number,title,labels,author,createdAt,updatedAt,url > \"$DIR/in-process/issues.json\"\nnode -e 'const fs=require(\"fs\"); const file=process.argv[1]; const rows=JSON.parse(fs.readFileSync(file,\"utf8\")); console.log(JSON.stringify({jobId:process.argv[2], issueCount:rows.length}))' \"$DIR/in-process/issues.json\" \"$JOB_ID\"\n"
+      },
+      {
+        "path": "workflow/02-build-summary.sh",
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\nJOB_ID=${1:?usage: workflow/02-build-summary.sh <job-id>}\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nDIR=\"$ROOT/projects/$JOB_ID\"\nmkdir -p \"$DIR/done\" \"$DIR/evidence\"\nnode - <<'NODE' \"$DIR/in-process/issues.json\" \"$DIR/done/triage-summary.md\" \"$DIR/evidence/outputs.json\"\nconst fs=require(\"fs\");\nconst [issuesFile,outFile,evidenceFile]=process.argv.slice(2);\nconst issues=JSON.parse(fs.readFileSync(issuesFile,\"utf8\"));\nconst labels=new Map();\nfor(const issue of issues) for(const label of issue.labels||[]) labels.set(label.name,(labels.get(label.name)||0)+1);\nlet md=\"# Issue triage summary\\n\\nTotal open issues: \"+issues.length+\"\\n\\n## Labels\\n\";\nfor(const [label,count] of [...labels.entries()].sort()) md+=\"- \"+label+\": \"+count+\"\\n\";\nmd+=\"\\n## Oldest issues\\n\";\nfor(const issue of issues.slice(0,10)) md+=\"- #\"+issue.number+\" \"+issue.title+\" (\"+issue.url+\")\\n\";\nfs.writeFileSync(outFile,md);\nfs.writeFileSync(evidenceFile,JSON.stringify({output:outFile,issueCount:issues.length,finishedAt:new Date().toISOString()},null,2)+\"\\n\");\nconsole.log(JSON.stringify({ok:true,output:outFile,issueCount:issues.length}));\nNODE\n"
+      }
+    ]
+  },
+  "doctor": {
+    "pathSettings": [
+      {
+        "file": "settings.json",
+        "objectPath": "paths"
+      }
+    ]
+  },
+  "workflowSteps": [
+    {
+      "step": "0",
+      "title": "Verify dependencies and settings",
+      "command": "utilities/doctor.sh",
+      "description": "Run this before operating the workflow."
+    },
+    {
+      "step": "1",
+      "title": "Fetch issue snapshot",
+      "command": "workflow/01-fetch-issues.sh",
+      "description": "Fetch open issues from the configured repository."
+    },
+    {
+      "step": "2",
+      "title": "Build triage summary",
+      "command": "workflow/02-build-summary.sh <job-id>",
+      "description": "Transform issue JSON into a Markdown summary."
+    }
+  ],
+  "utilityCommands": [
+    {
+      "name": "doctor",
+      "command": "utilities/doctor.sh",
+      "purpose": "Verify dependencies and settings."
+    },
+    {
+      "name": "settings",
+      "command": "utilities/settings.sh [key]",
+      "purpose": "Print settings.json or a single settings key."
+    }
+  ],
+  "customSections": [
+    {
+      "title": "Transformation",
+      "content": "Input: GitHub issue JSON. Output: `projects/<job-id>/done/triage-summary.md` plus ignored local evidence."
+    }
+  ],
+  "git": {
+    "visibility": "public",
+    "extraIgnore": []
+  }
+}

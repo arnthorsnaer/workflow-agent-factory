@@ -15,22 +15,22 @@ bun --version
 Generate an agent from a JSON recipe:
 
 ```bash
-bun run create recipes/external-service-workflow.json --out ../external-service-workflow-agent
-bun run create recipes/internal-tool-workflow.json --out ../internal-tool-workflow-agent
+bun run create recipes/image-contact-sheet-workflow.json --out ../image-contact-sheet-agent
+bun run create recipes/github-issues-triage-workflow.json --out ../github-issues-triage-agent
 ```
 
 Overwrite generated files/copy targets in a non-empty output directory:
 
 ```bash
-bun run create recipes/internal-tool-workflow.json --out ../internal-tool-workflow-agent --force
+bun run create recipes/image-contact-sheet-workflow.json --out ../image-contact-sheet-agent --force
 ```
 
 ## Recipes
 
 Recipes are JSON files that describe a workflow agent to generate. The included recipes are generic starting points:
 
-- `recipes/external-service-workflow.json`
-- `recipes/internal-tool-workflow.json`
+- `recipes/image-contact-sheet-workflow.json` — local image folder → HTML contact sheet using an internal tool.
+- `recipes/github-issues-triage-workflow.json` — GitHub issues → local Markdown triage summary using an external service.
 
 Copy a recipe, rename it, and adapt it for your workflow.
 

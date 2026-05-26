@@ -80,5 +80,5 @@ After successful external publish, cleanup should remove/trash processing files 
 
 ## Current recipes
 
-- `recipes/external-service-workflow.json` — generic external-service workflow with stable workflow commands and helper utilities.
-- `recipes/internal-tool-workflow.json` — generic internal-tool workflow with implementation code under `tools/`.
+- `recipes/image-contact-sheet-workflow.json` — local image folder → HTML contact sheet using an internal tool.
+- `recipes/github-issues-triage-workflow.json` — GitHub issues → local Markdown triage summary using an external service.
