@@ -34,15 +34,15 @@ The only useful distinction is whether each dependency is owned by the repo or e
 - Never commit credentials, tokens, API keys, cookies, local service config, or real environment files.
 - Never commit files being processed by a generated workflow agent.
 - Evidence/archive data is ignored by default because it may contain private paths, titles, URLs, release names, or decisions.
-- Generated agents should commit only workflow instructions, internal tooling, templates, checked-in config, and sanitized examples.
+- Generated agents should commit only workflow instructions, internal tooling, templates, checked-in config, and sanitized recipes.
 - Preserve user-created source agents unless explicitly replacing them after approval.
 - Avoid multiple sources of truth. If a value is user-editable, store it in exactly one settings file and reference that file/key everywhere else, e.g. `settings.json:paths.output`.
 - Prefer executable command interfaces over prose-only operational instructions. If a dependency/service has a safe CLI start/status/check command, put it in `settings.json` and have workflow/utilities commands use it instead of asking the agent to remember manual steps.
-- Do not duplicate editable setting values in generated docs, generated manifests, scripts, or examples unless the target file is the source-of-truth settings file itself.
+- Do not duplicate editable setting values in generated docs, generated manifests, scripts, or recipes unless the target file is the source-of-truth settings file itself.
 
 ## Standard workflow
 
-1. Capture the workflow as a JSON spec.
+1. Capture the workflow as a JSON recipe.
 2. Declare all dependencies explicitly.
 3. Declare where files being processed live:
    - `internal`: under the generated repo, e.g. `projects/<job-id>/todo`.
@@ -52,7 +52,7 @@ The only useful distinction is whether each dependency is owned by the repo or e
 5. Generate the workflow agent:
 
 ```bash
-bun run create examples/<agent>.json --out ../<agent-name>
+bun run create recipes/<agent>.json --out ../<agent-name>
 ```
 
 6. Run generated dependency checks:
@@ -60,12 +60,6 @@ bun run create examples/<agent>.json --out ../<agent-name>
 ```bash
 cd ../<agent-name>
 utilities/doctor.sh
-```
-
-7. Compare a generated agent to an existing agent when iterating:
-
-```bash
-bun run compare ../existing-agent ../generated-agent
 ```
 
 ## Processing/evidence convention
@@ -84,7 +78,7 @@ External processing agents keep the actual files outside the repo and use `proje
 
 After successful external publish, cleanup should remove/trash processing files and preserve evidence only. Evidence is ignored by default.
 
-## Current example specs
+## Current recipes
 
-- `examples/external-service-workflow.json` — generic external-service workflow with stable workflow commands and helper utilities.
-- `examples/internal-tool-workflow.json` — generic internal-tool workflow with implementation code under `tools/`.
+- `recipes/external-service-workflow.json` — generic external-service workflow with stable workflow commands and helper utilities.
+- `recipes/internal-tool-workflow.json` — generic internal-tool workflow with implementation code under `tools/`.

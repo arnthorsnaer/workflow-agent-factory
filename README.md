@@ -12,28 +12,31 @@ Requires Bun.
 bun --version
 ```
 
-Generate an agent from a JSON spec:
+Generate an agent from a JSON recipe:
 
 ```bash
-bun run create examples/external-service-workflow.json --out ../external-service-workflow-agent
-bun run create examples/internal-tool-workflow.json --out ../internal-tool-workflow-agent
+bun run create recipes/external-service-workflow.json --out ../external-service-workflow-agent
+bun run create recipes/internal-tool-workflow.json --out ../internal-tool-workflow-agent
 ```
 
 Overwrite generated files/copy targets in a non-empty output directory:
 
 ```bash
-bun run create examples/internal-tool-workflow.json --out ../internal-tool-workflow-agent --force
+bun run create recipes/internal-tool-workflow.json --out ../internal-tool-workflow-agent --force
 ```
 
-Compare an existing agent and generated agent:
+## Recipes
 
-```bash
-bun run compare ../existing-agent ../generated-agent
-```
+Recipes are JSON files that describe a workflow agent to generate. The included recipes are generic starting points:
+
+- `recipes/external-service-workflow.json`
+- `recipes/internal-tool-workflow.json`
+
+Copy a recipe, rename it, and adapt it for your workflow.
 
 ## Spec model
 
-Each spec must declare:
+Each recipe must declare:
 
 - `name`
 - `description`
@@ -82,7 +85,7 @@ projects/.gitkeep
 projects/archive/.gitkeep
 ```
 
-It may also write spec-declared `settings.json`, `.env.example`, `workflow/*`, `utilities/*`, and `tools/*` files.
+It may also write recipe-declared `settings.json`, `.env.example`, `workflow/*`, `utilities/*`, and `tools/*` files.
 
 ## Git policy
 
