@@ -24,34 +24,24 @@
     ],
     "internalTools": [
       {
-        "name": "settings",
-        "command": "commands/settings.sh [key]",
-        "purpose": "Print settings.json or a single settings key."
-      },
-      {
         "name": "search-releases",
-        "command": "commands/search-releases.sh <query>",
-        "purpose": "Search available releases and print normalized JSON results."
+        "command": "workflow/01-search-releases.sh <query>",
+        "purpose": "Step 1: Search available releases and print normalized JSON results."
       },
       {
         "name": "download-login",
-        "command": "commands/download-login.sh",
-        "purpose": "Authenticate to the configured download client."
+        "command": "workflow/02-download-login.sh",
+        "purpose": "Step 2: Authenticate to the configured download client."
       },
       {
         "name": "add-download",
-        "command": "commands/add-download.sh <download-uri> <movie|tv|category>",
-        "purpose": "Add a selected release to the configured download client."
+        "command": "workflow/03-add-download.sh <download-uri> <movie|tv|category>",
+        "purpose": "Step 3: Add a selected release to the configured download client."
       },
       {
         "name": "list-downloads",
-        "command": "commands/list-downloads.sh",
-        "purpose": "Print normalized active/completed download status JSON."
-      },
-      {
-        "name": "get-episodes",
-        "command": "commands/get-episodes.sh <series-id>",
-        "purpose": "Print SxxExx to episode-title map from the configured TV metadata backend."
+        "command": "workflow/04-list-downloads.sh",
+        "purpose": "Step 4: Print normalized active/completed download status JSON."
       }
     ],
     "services": [
@@ -60,21 +50,21 @@
         "url": "settings.json:backends.releaseSearch.url",
         "purpose": "Search/indexer backend. Current implementation type is configured in settings.json.",
         "required": true,
-        "verify": "Use commands/search-releases.sh."
+        "verify": "Use workflow/01-search-releases.sh."
       },
       {
         "name": "Download client backend",
         "url": "settings.json:backends.downloadClient.url",
         "purpose": "Download client backend. Current implementation type is configured in settings.json.",
         "required": true,
-        "verify": "Use commands/download-login.sh and commands/list-downloads.sh."
+        "verify": "Use workflow/02-download-login.sh and workflow/04-list-downloads.sh."
       },
       {
         "name": "TV metadata backend",
         "url": "settings.json:backends.tvMetadata.url",
         "purpose": "TV metadata/source-of-truth backend. Current implementation type is configured in settings.json.",
         "required": true,
-        "verify": "Use commands/get-episodes.sh when episode titles are needed."
+        "verify": "Use utilities/get-episodes.sh when episode titles are needed."
       },
       {
         "name": "Movie metadata backend",
@@ -96,13 +86,13 @@
     "environmentVariables": [
       {
         "name": "DOWNLOAD_CLIENT_USERNAME",
-        "purpose": "Download client username used by commands/download-login.sh.",
+        "purpose": "Download client username used by workflow/02-download-login.sh.",
         "required": true,
         "containsSecrets": false
       },
       {
         "name": "DOWNLOAD_CLIENT_PASSWORD",
-        "purpose": "Download client password used by commands/download-login.sh.",
+        "purpose": "Download client password used by workflow/02-download-login.sh.",
         "required": true,
         "containsSecrets": true
       }
@@ -196,17 +186,17 @@
   ],
   "standardWorkflow": [
     "Review and edit settings.json for this machine before first use.",
-    "Run commands/doctor.sh and load secrets only from local untracked config/environment.",
+    "Run utilities/doctor.sh and load secrets only from local untracked config/environment.",
     "Check the configured movie/TV libraries and metadata backends before searching.",
-    "Search releases with commands/search-releases.sh <query>.",
-    "Authenticate with commands/download-login.sh, then add the selected release with commands/add-download.sh <download-uri> <movie|tv>.",
-    "Monitor progress with commands/list-downloads.sh.",
-    "When needed for TV naming, fetch episode titles with commands/get-episodes.sh <series-id>.",
+    "Search releases with workflow/01-search-releases.sh <query>.",
+    "Authenticate with workflow/02-download-login.sh, then add the selected release with workflow/03-add-download.sh <download-uri> <movie|tv>.",
+    "Monitor progress with workflow/04-list-downloads.sh.",
+    "When needed for TV naming, fetch episode titles with utilities/get-episodes.sh <series-id>.",
     "Publish completed files to the configured media library, verify destination files exist, move source payloads to configured trash, preserve local evidence, and archive evidence."
   ],
   "fallbackWorkflow": [
     "If a download stalls for multiple checks, find a better release and swap automatically unless upfront policy requires approval.",
-    "If a command cannot handle an edge case, inspect the current backend implementation in commands/ and update the command rather than duplicating implementation details in AGENTS.md.",
+    "If a command cannot handle an edge case, inspect the current backend implementation in workflow/ or utilities/ and update the command rather than duplicating implementation details in AGENTS.md.",
     "If naming is ambiguous, inspect filenames and metadata before moving files."
   ],
   "safetyRules": [
@@ -218,13 +208,14 @@
   ],
   "knownLimitations": [
     "Current command implementations target the backend types configured in settings.json.",
-    "If backend behavior changes, update commands/* rather than workflow prose."
+    "If backend behavior changes, update workflow/ or utilities/ command implementations rather than workflow prose."
   ],
   "scaffold": {
     "createDirs": [
       "projects",
       "projects/archive",
-      "commands"
+      "workflow",
+      "utilities"
     ],
     "files": [
       {
@@ -262,28 +253,28 @@
         "content": "# Download client credentials. Real values go in your shell environment or an untracked .env file.\nDOWNLOAD_CLIENT_USERNAME=\nDOWNLOAD_CLIENT_PASSWORD=\n"
       },
       {
-        "path": "commands/settings.sh",
+        "path": "utilities/settings.sh",
         "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; if (typeof v === \"object\") console.log(JSON.stringify(v)); else console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#\\~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nservice_config() { expand_path \"$(json_get paths.serviceConfig)\"; }\napi_key() { node -e 'const c=require(process.argv[1]); console.log(c.services[process.argv[2]].apiKey)' \"$(service_config)\" \"$1\"; }\nif [ \"$#\" -eq 0 ]; then cat \"$SETTINGS\"; else json_get \"$1\"; fi\n"
       },
       {
-        "path": "commands/download-login.sh",
+        "path": "workflow/02-download-login.sh",
         "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; if (typeof v === \"object\") console.log(JSON.stringify(v)); else console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#\\~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nservice_config() { expand_path \"$(json_get paths.serviceConfig)\"; }\napi_key() { node -e 'const c=require(process.argv[1]); console.log(c.services[process.argv[2]].apiKey)' \"$(service_config)\" \"$1\"; }\n: \"${DOWNLOAD_CLIENT_USERNAME:?set DOWNLOAD_CLIENT_USERNAME}\"\n: \"${DOWNLOAD_CLIENT_PASSWORD:?set DOWNLOAD_CLIENT_PASSWORD}\"\nDOWNLOAD_URL=$(json_get backends.downloadClient.url)\ncurl -s -c /tmp/video_fetcher_download_cookies.txt -X POST \"$DOWNLOAD_URL/api/v2/auth/login\" --data-urlencode \"username=$DOWNLOAD_CLIENT_USERNAME\" --data-urlencode \"password=$DOWNLOAD_CLIENT_PASSWORD\" >/dev/null\nprintf '{\"ok\":true,\"cookieFile\":\"/tmp/video_fetcher_download_cookies.txt\"}\\n'\n"
       },
       {
-        "path": "commands/list-downloads.sh",
+        "path": "workflow/04-list-downloads.sh",
         "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; if (typeof v === \"object\") console.log(JSON.stringify(v)); else console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#\\~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nservice_config() { expand_path \"$(json_get paths.serviceConfig)\"; }\napi_key() { node -e 'const c=require(process.argv[1]); console.log(c.services[process.argv[2]].apiKey)' \"$(service_config)\" \"$1\"; }\nDOWNLOAD_URL=$(json_get backends.downloadClient.url)\ncurl -s -b /tmp/video_fetcher_download_cookies.txt \"$DOWNLOAD_URL/api/v2/torrents/info\" | node -e 'const fs=require(\"fs\"); const rows=JSON.parse(fs.readFileSync(0,\"utf8\")||\"[]\"); const out=rows.map(t=>({id:t.hash,name:t.name,state:t.state,progress:t.progress,sizeBytes:t.size,category:t.category,savePath:t.save_path,completed:t.progress===1 || [\"stalledUP\",\"uploading\"].includes(t.state)})); console.log(JSON.stringify(out,null,2));'\n"
       },
       {
-        "path": "commands/add-download.sh",
-        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; if (typeof v === \"object\") console.log(JSON.stringify(v)); else console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#\\~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nservice_config() { expand_path \"$(json_get paths.serviceConfig)\"; }\napi_key() { node -e 'const c=require(process.argv[1]); console.log(c.services[process.argv[2]].apiKey)' \"$(service_config)\" \"$1\"; }\nDOWNLOAD_URI=${1:?usage: commands/add-download.sh <download-uri> <movie|tv|category>}\nKIND=${2:?usage: commands/add-download.sh <download-uri> <movie|tv|category>}\ncase \"$KIND\" in movie) CATEGORY=radarr ;; tv) CATEGORY=tv-sonarr ;; *) CATEGORY=\"$KIND\" ;; esac\nDOWNLOAD_URL=$(json_get backends.downloadClient.url)\nDOWNLOAD_STAGING=$(json_get paths.downloadStaging)\ncurl -s -b /tmp/video_fetcher_download_cookies.txt -H \"Referer: $DOWNLOAD_URL\" -X POST \"$DOWNLOAD_URL/api/v2/torrents/add\" --data-urlencode \"urls=$DOWNLOAD_URI\" --data-urlencode \"savepath=$DOWNLOAD_STAGING\" --data-urlencode \"category=$CATEGORY\"\nprintf '{\"ok\":true,\"category\":\"%s\",\"savepath\":\"%s\"}\\n' \"$CATEGORY\" \"$DOWNLOAD_STAGING\"\n"
+        "path": "workflow/03-add-download.sh",
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; if (typeof v === \"object\") console.log(JSON.stringify(v)); else console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#\\~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nservice_config() { expand_path \"$(json_get paths.serviceConfig)\"; }\napi_key() { node -e 'const c=require(process.argv[1]); console.log(c.services[process.argv[2]].apiKey)' \"$(service_config)\" \"$1\"; }\nDOWNLOAD_URI=${1:?usage: workflow/03-add-download.sh <download-uri> <movie|tv|category>}\nKIND=${2:?usage: workflow/03-add-download.sh <download-uri> <movie|tv|category>}\ncase \"$KIND\" in movie) CATEGORY=radarr ;; tv) CATEGORY=tv-sonarr ;; *) CATEGORY=\"$KIND\" ;; esac\nDOWNLOAD_URL=$(json_get backends.downloadClient.url)\nDOWNLOAD_STAGING=$(json_get paths.downloadStaging)\ncurl -s -b /tmp/video_fetcher_download_cookies.txt -H \"Referer: $DOWNLOAD_URL\" -X POST \"$DOWNLOAD_URL/api/v2/torrents/add\" --data-urlencode \"urls=$DOWNLOAD_URI\" --data-urlencode \"savepath=$DOWNLOAD_STAGING\" --data-urlencode \"category=$CATEGORY\"\nprintf '{\"ok\":true,\"category\":\"%s\",\"savepath\":\"%s\"}\\n' \"$CATEGORY\" \"$DOWNLOAD_STAGING\"\n"
       },
       {
-        "path": "commands/search-releases.sh",
-        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; if (typeof v === \"object\") console.log(JSON.stringify(v)); else console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#\\~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nservice_config() { expand_path \"$(json_get paths.serviceConfig)\"; }\napi_key() { node -e 'const c=require(process.argv[1]); console.log(c.services[process.argv[2]].apiKey)' \"$(service_config)\" \"$1\"; }\nQUERY=${1:?usage: commands/search-releases.sh <query>}\nSEARCH_URL=$(json_get backends.releaseSearch.url)\nSEARCH_KEY=$(api_key prowlarr)\nENCODED=$(node -e 'console.log(encodeURIComponent(process.argv.slice(1).join(\" \")))' \"$QUERY\")\ncurl -s \"$SEARCH_URL/api/v1/search?query=$ENCODED&type=search&limit=50\" -H \"X-Api-Key: $SEARCH_KEY\" | node -e 'const fs=require(\"fs\"); const rows=JSON.parse(fs.readFileSync(0,\"utf8\")||\"[]\"); const out=rows.map(r=>{const hash=r.infoHash || ((r.guid||\"\").match(/[A-Fa-f0-9]{40}/)||[])[0]; const downloadUri=r.magnetUrl || (hash ? `magnet:?xt=urn:btih:${hash}&dn=${encodeURIComponent(r.title||\"\")}` : r.downloadUrl || r.guid); return {title:r.title,sizeBytes:r.size,quality:r.quality?.quality?.name || r.quality || null,seeders:r.seeders,indexer:r.indexer,downloadUri,infoHash:hash || null};}); console.log(JSON.stringify(out,null,2));'\n"
+        "path": "workflow/01-search-releases.sh",
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; if (typeof v === \"object\") console.log(JSON.stringify(v)); else console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#\\~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nservice_config() { expand_path \"$(json_get paths.serviceConfig)\"; }\napi_key() { node -e 'const c=require(process.argv[1]); console.log(c.services[process.argv[2]].apiKey)' \"$(service_config)\" \"$1\"; }\nQUERY=${1:?usage: workflow/01-search-releases.sh <query>}\nSEARCH_URL=$(json_get backends.releaseSearch.url)\nSEARCH_KEY=$(api_key prowlarr)\nENCODED=$(node -e 'console.log(encodeURIComponent(process.argv.slice(1).join(\" \")))' \"$QUERY\")\ncurl -s \"$SEARCH_URL/api/v1/search?query=$ENCODED&type=search&limit=50\" -H \"X-Api-Key: $SEARCH_KEY\" | node -e 'const fs=require(\"fs\"); const rows=JSON.parse(fs.readFileSync(0,\"utf8\")||\"[]\"); const out=rows.map(r=>{const hash=r.infoHash || ((r.guid||\"\").match(/[A-Fa-f0-9]{40}/)||[])[0]; const downloadUri=r.magnetUrl || (hash ? `magnet:?xt=urn:btih:${hash}&dn=${encodeURIComponent(r.title||\"\")}` : r.downloadUrl || r.guid); return {title:r.title,sizeBytes:r.size,quality:r.quality?.quality?.name || r.quality || null,seeders:r.seeders,indexer:r.indexer,downloadUri,infoHash:hash || null};}); console.log(JSON.stringify(out,null,2));'\n"
       },
       {
-        "path": "commands/get-episodes.sh",
-        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; if (typeof v === \"object\") console.log(JSON.stringify(v)); else console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#\\~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nservice_config() { expand_path \"$(json_get paths.serviceConfig)\"; }\napi_key() { node -e 'const c=require(process.argv[1]); console.log(c.services[process.argv[2]].apiKey)' \"$(service_config)\" \"$1\"; }\nSERIES_ID=${1:?usage: commands/get-episodes.sh <series-id>}\nTV_URL=$(json_get backends.tvMetadata.url)\nTV_KEY=$(api_key sonarr)\ncurl -s \"$TV_URL/api/v3/episode?seriesId=$SERIES_ID\" -H \"X-Api-Key: $TV_KEY\" | node -e 'const fs=require(\"fs\"); const rows=JSON.parse(fs.readFileSync(0,\"utf8\")||\"[]\"); const map={}; rows.filter(e=>e.seasonNumber>0).forEach(e=>{const s=String(e.seasonNumber).padStart(2,\"0\"); const ep=String(e.episodeNumber).padStart(2,\"0\"); map[`S${s}E${ep}`]=e.title;}); console.log(JSON.stringify(map,null,2));'\n"
+        "path": "utilities/get-episodes.sh",
+        "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\nSETTINGS=\"$ROOT/settings.json\"\njson_get() { node -e 'const fs=require(\"fs\"); const data=JSON.parse(fs.readFileSync(process.argv[1],\"utf8\")); const key=process.argv[2]; let v=data; for (const p of key.split(\".\")) v=v[p]; if (typeof v === \"object\") console.log(JSON.stringify(v)); else console.log(v);' \"$SETTINGS\" \"$1\"; }\nexpand_path() { case \"$1\" in ~/*) printf '%s/%s' \"$HOME\" \"${1#\\~/}\" ;; *) printf '%s' \"$1\" ;; esac; }\nservice_config() { expand_path \"$(json_get paths.serviceConfig)\"; }\napi_key() { node -e 'const c=require(process.argv[1]); console.log(c.services[process.argv[2]].apiKey)' \"$(service_config)\" \"$1\"; }\nSERIES_ID=${1:?usage: utilities/get-episodes.sh <series-id>}\nTV_URL=$(json_get backends.tvMetadata.url)\nTV_KEY=$(api_key sonarr)\ncurl -s \"$TV_URL/api/v3/episode?seriesId=$SERIES_ID\" -H \"X-Api-Key: $TV_KEY\" | node -e 'const fs=require(\"fs\"); const rows=JSON.parse(fs.readFileSync(0,\"utf8\")||\"[]\"); const map={}; rows.filter(e=>e.seasonNumber>0).forEach(e=>{const s=String(e.seasonNumber).padStart(2,\"0\"); const ep=String(e.episodeNumber).padStart(2,\"0\"); map[`S${s}E${ep}`]=e.title;}); console.log(JSON.stringify(map,null,2));'\n"
       }
     ]
   },
@@ -312,7 +303,7 @@
   "customSections": [
     {
       "title": "Command interface contract",
-      "content": "Use `commands/` as the workflow command surface. Prefer updating command implementations over adding backend-specific curl/API details to this guide.\n\n- stdout: parseable data/result, usually JSON.\n- stderr: diagnostics for humans.\n- exit code: success/failure.\n\nCore commands:\n\n```bash\ncommands/doctor.sh\ncommands/settings.sh [key]\ncommands/search-releases.sh \"Film Title 2160p\"\ncommands/download-login.sh\ncommands/add-download.sh \"$DOWNLOAD_URI\" movie\ncommands/add-download.sh \"$DOWNLOAD_URI\" tv\ncommands/list-downloads.sh\ncommands/get-episodes.sh <series-id>\n```"
+      "content": "Use `workflow/` for ordered workflow steps and `utilities/` for helper commands. Prefer updating command implementations over adding backend-specific curl/API details to this guide.\n\n- stdout: parseable data/result, usually JSON.\n- stderr: diagnostics for humans.\n- exit code: success/failure.\n\nCore commands:\n\n```bash\nutilities/doctor.sh\nutilities/settings.sh [key]\nworkflow/01-search-releases.sh \"Film Title 2160p\"\nworkflow/02-download-login.sh\nworkflow/03-add-download.sh \"$DOWNLOAD_URI\" movie\nworkflow/03-add-download.sh \"$DOWNLOAD_URI\" tv\nworkflow/04-list-downloads.sh\nutilities/get-episodes.sh <series-id>\n```"
     },
     {
       "title": "Current backend implementation",
@@ -324,11 +315,69 @@
     },
     {
       "title": "File naming rules",
-      "content": "### Movies\n\n- Folder: `Movie Title (Year)/`\n- File: `Movie Title (Year).ext`\n- Multiple versions: `Movie Title (Year) - 1080p.mkv` / `Movie Title (Year) - 2160p.mkv`\n\n### TV — Star Trek abbreviations\n\n| Show | Abbrev | Metadata ID |\n|------|--------|-------------|\n| The Original Series | TOS | 4 |\n| The Next Generation | TNG | 11 |\n| Deep Space Nine | DS9 | 7 |\n| Voyager | VOY | 5 |\n| Enterprise | ENT | 8 |\n| Discovery | DIS | 9 |\n| Picard | PIC | 10 |\n| Strange New Worlds | SNW | 2 |\n\nFormat: `ABBREV - S01E01 - Episode Title.ext`\n\nFolder root comes from `settings.json:paths.tvLibrary`. For Star Trek, use the Star Trek subfolders under that configured TV library root.\n\n### General TV\n\nFormat: `Show Name - S01E01 - Episode Title.ext`\n\n### Naming rules\n\n- Do not use regex/scripts to blindly rename — the LLM does renaming directly by looking at filenames and using judgment.\n- Strip quality/group tags: `1080p`, `2160p`, `BluRay`, `x265`, `HEVC`, `Joy`, `RARBG`, `[TGx]`, `-GroupName`, etc.\n- Replace dots/underscores with spaces.\n- Delete bonus/featurette files with no SxxExx pattern.\n- Keep `.srt`/`.sub` subtitles, rename to match video.\n\n### Combined two-part episodes\n\nWhen two episodes are combined into one file, name as `ABBREV - S01E01E02 - Title.mkv` with no part suffix. A file about 2x the median size of other episodes in the season is likely a combined two-parter.\n\n### Season pack numbering offset\n\nSome source packs number a double-episode opener as `e01` rather than `e01e02`. This shifts every subsequent episode down by one. Always cross-reference a few episode titles with `commands/get-episodes.sh <series-id>`. If there is an offset, rename highest-to-lowest to avoid collisions."
+      "content": "### Movies\n\n- Folder: `Movie Title (Year)/`\n- File: `Movie Title (Year).ext`\n- Multiple versions: `Movie Title (Year) - 1080p.mkv` / `Movie Title (Year) - 2160p.mkv`\n\n### TV — Star Trek abbreviations\n\n| Show | Abbrev | Metadata ID |\n|------|--------|-------------|\n| The Original Series | TOS | 4 |\n| The Next Generation | TNG | 11 |\n| Deep Space Nine | DS9 | 7 |\n| Voyager | VOY | 5 |\n| Enterprise | ENT | 8 |\n| Discovery | DIS | 9 |\n| Picard | PIC | 10 |\n| Strange New Worlds | SNW | 2 |\n\nFormat: `ABBREV - S01E01 - Episode Title.ext`\n\nFolder root comes from `settings.json:paths.tvLibrary`. For Star Trek, use the Star Trek subfolders under that configured TV library root.\n\n### General TV\n\nFormat: `Show Name - S01E01 - Episode Title.ext`\n\n### Naming rules\n\n- Do not use regex/scripts to blindly rename — the LLM does renaming directly by looking at filenames and using judgment.\n- Strip quality/group tags: `1080p`, `2160p`, `BluRay`, `x265`, `HEVC`, `Joy`, `RARBG`, `[TGx]`, `-GroupName`, etc.\n- Replace dots/underscores with spaces.\n- Delete bonus/featurette files with no SxxExx pattern.\n- Keep `.srt`/`.sub` subtitles, rename to match video.\n\n### Combined two-part episodes\n\nWhen two episodes are combined into one file, name as `ABBREV - S01E01E02 - Title.mkv` with no part suffix. A file about 2x the median size of other episodes in the season is likely a combined two-parter.\n\n### Season pack numbering offset\n\nSome source packs number a double-episode opener as `e01` rather than `e01e02`. This shifts every subsequent episode down by one. Always cross-reference a few episode titles with `utilities/get-episodes.sh <series-id>`. If there is an offset, rename highest-to-lowest to avoid collisions."
     },
     {
       "title": "Monitoring loop and cleanup",
-      "content": "The agent runs the monitoring loop directly, not as a background script. Sleep 10 minutes between checks so the LLM can handle renaming intelligently when things complete.\n\nLoop:\n\n1. Use `commands/list-downloads.sh` to check for completed downloads.\n2. For each completed download:\n   - inspect files\n   - determine correct Plex names using judgment\n   - publish to the configured movie/TV library path\n   - verify destination exists\n   - move the source folder/file to the configured trash path\n   - remove the download from the download client using the backend UI/API if needed\n   - preserve local evidence under `projects/<job-id>/evidence/`, then archive it under `projects/archive/<job-id>/`\n3. If a download has no progress for 3+ checks, find an alternative, swap automatically, and inform the user after the fact.\n4. Never pause mid-download to ask permission.\n\nNever `rm -rf`. Always move processed sources to the configured trash path after verifying destination files exist."
+      "content": "The agent runs the monitoring loop directly, not as a background script. Sleep 10 minutes between checks so the LLM can handle renaming intelligently when things complete.\n\nLoop:\n\n1. Use `workflow/04-list-downloads.sh` to check for completed downloads.\n2. For each completed download:\n   - inspect files\n   - determine correct Plex names using judgment\n   - publish to the configured movie/TV library path\n   - verify destination exists\n   - move the source folder/file to the configured trash path\n   - remove the download from the download client using the backend UI/API if needed\n   - preserve local evidence under `projects/<job-id>/evidence/`, then archive it under `projects/archive/<job-id>/`\n3. If a download has no progress for 3+ checks, find an alternative, swap automatically, and inform the user after the fact.\n4. Never pause mid-download to ask permission.\n\nNever `rm -rf`. Always move processed sources to the configured trash path after verifying destination files exist."
+    }
+  ],
+  "utilityCommands": [
+    {
+      "name": "doctor",
+      "command": "utilities/doctor.sh",
+      "purpose": "Verify workflow dependencies, required environment variables, settings, and paths."
+    },
+    {
+      "name": "settings",
+      "command": "utilities/settings.sh [key]",
+      "purpose": "Print settings.json or a single settings key."
+    },
+    {
+      "name": "get-episodes",
+      "command": "utilities/get-episodes.sh <series-id>",
+      "purpose": "Fetch SxxExx episode-title map when processing TV naming."
+    }
+  ],
+  "workflowSteps": [
+    {
+      "step": "0",
+      "title": "Verify dependencies and settings",
+      "command": "utilities/doctor.sh",
+      "description": "Run this before operating the workflow. Fix missing required dependencies before continuing."
+    },
+    {
+      "step": "1",
+      "title": "Search releases",
+      "command": "workflow/01-search-releases.sh \"Film Title 2160p\"",
+      "description": "Search for candidate releases. The command returns normalized JSON with release title, size, quality, seeders, and download URI."
+    },
+    {
+      "step": "2",
+      "title": "Authenticate to download client",
+      "command": "workflow/02-download-login.sh",
+      "description": "Authenticate to the configured download client using environment credentials."
+    },
+    {
+      "step": "3",
+      "title": "Add selected download",
+      "command": "workflow/03-add-download.sh \"$DOWNLOAD_URI\" movie",
+      "description": "Add the selected release to the configured download client. Use `movie`, `tv`, or a backend category as the second argument."
+    },
+    {
+      "step": "4",
+      "title": "Monitor downloads",
+      "command": "workflow/04-list-downloads.sh",
+      "description": "List downloads as normalized JSON. Completed downloads are marked with `completed: true`."
+    },
+    {
+      "step": "5",
+      "title": "Publish, clean up, and archive evidence",
+      "description": "LLM-operated judgment step: inspect completed files, rename according to policy, publish to the configured library, verify destination exists, move source payloads to the configured trash path, and preserve/archive evidence only.",
+      "notes": [
+        "Use `utilities/get-episodes.sh <series-id>` when TV episode titles are needed.",
+        "Never `rm -rf`; always use the configured trash path after verification."
+      ]
     }
   ]
 }

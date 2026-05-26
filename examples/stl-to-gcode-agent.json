@@ -51,28 +51,28 @@
     "internalTools": [
       {
         "name": "convert",
-        "command": "commands/convert.sh <source>",
-        "purpose": "Workflow-facing one-shot import, list, slice, and preview wrapper."
+        "command": "workflow/01A-convert.sh <source>",
+        "purpose": "Step 1A: Preferred one-shot import/list/slice/preview wrapper."
       },
       {
         "name": "import",
-        "command": "commands/import.sh <source>",
-        "purpose": "Workflow-facing import/download/extract/discover wrapper."
+        "command": "workflow/01B-import.sh <source>",
+        "purpose": "Step 1B: Alternate/manual import/download/extract/discover wrapper."
       },
       {
         "name": "list",
-        "command": "commands/list.sh <id>",
-        "purpose": "Workflow-facing discovered STL listing wrapper."
+        "command": "workflow/02-list.sh <id>",
+        "purpose": "Step 2: List discovered STLs."
       },
       {
         "name": "slice",
-        "command": "commands/slice.sh <id>",
-        "purpose": "Workflow-facing slicing wrapper."
+        "command": "workflow/03-slice.sh <id>",
+        "purpose": "Step 3: Slice selected STL."
       },
       {
         "name": "preview",
-        "command": "commands/preview.sh <id>",
-        "purpose": "Workflow-facing G-code preview wrapper."
+        "command": "workflow/04-preview.sh <id>",
+        "purpose": "Step 4: Regenerate/check G-code previews."
       }
     ],
     "services": [],
@@ -239,7 +239,8 @@
     "createDirs": [
       "projects",
       "projects/archive",
-      "commands",
+      "workflow",
+      "utilities",
       "tools"
     ],
     "replacements": [
@@ -287,23 +288,23 @@
         "content": "# Optional: path to PrusaSlicer if it is not available as prusa-slicer.\nPRUSA_SLICER_BIN=\n"
       },
       {
-        "path": "commands/convert.sh",
+        "path": "workflow/01A-convert.sh",
         "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\ncd \"$ROOT/tools/stl-to-gcode\"\nexec bun run convert \"$@\"\n"
       },
       {
-        "path": "commands/import.sh",
+        "path": "workflow/01B-import.sh",
         "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\ncd \"$ROOT/tools/stl-to-gcode\"\nexec bun run import \"$@\"\n"
       },
       {
-        "path": "commands/list.sh",
+        "path": "workflow/02-list.sh",
         "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\ncd \"$ROOT/tools/stl-to-gcode\"\nexec bun run list \"$@\"\n"
       },
       {
-        "path": "commands/slice.sh",
+        "path": "workflow/03-slice.sh",
         "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\ncd \"$ROOT/tools/stl-to-gcode\"\nexec bun run slice \"$@\"\n"
       },
       {
-        "path": "commands/preview.sh",
+        "path": "workflow/04-preview.sh",
         "content": "#!/usr/bin/env bash\nset -euo pipefail\nROOT=$(cd \"$(dirname \"$0\")/..\" && pwd)\ncd \"$ROOT/tools/stl-to-gcode\"\nexec bun run preview \"$@\"\n"
       }
     ]
@@ -320,7 +321,7 @@
   "customSections": [
     {
       "title": "STL workflow details",
-      "content": "Prefer the one-shot command:\n\n```bash\ncommands/convert.sh <source>\ncommands/convert.sh <source> --stl <index>\ncommands/convert.sh <source> --profile pla-fine\n```\n\nIf PrusaSlicer is not on PATH, supply it with either `PRUSA_SLICER_BIN` or `--prusa-slicer /path/to/prusa-slicer`.\n\nIf multiple printable STLs are found, do not guess. Show the list to the user and ask which STL index to use.\n\nAfter a successful slice, report the G-code and preview paths under `projects/<id>/done/`. If the external destination is already available, copy only the final G-code there; do not mount or manage removable media."
+      "content": "Prefer the one-shot command:\n\n```bash\nworkflow/01A-convert.sh <source>\nworkflow/01A-convert.sh <source> --stl <index>\nworkflow/01A-convert.sh <source> --profile pla-fine\n```\n\nIf PrusaSlicer is not on PATH, supply it with either `PRUSA_SLICER_BIN` or `--prusa-slicer /path/to/prusa-slicer`.\n\nIf multiple printable STLs are found, do not guess. Show the list to the user and ask which STL index to use.\n\nAfter a successful slice, report the G-code and preview paths under `projects/<id>/done/`. If the external destination is already available, copy only the final G-code there; do not mount or manage removable media."
     },
     {
       "title": "IDs, settings, and validation",
@@ -328,7 +329,7 @@
     },
     {
       "title": "Thingiverse behavior",
-      "content": "Thingiverse support is best-effort via the direct ZIP endpoint first. If that returns HTML instead of a ZIP, the importer may fall back to `agent-browser` to click the visible STL download button. If both approaches fail, ask the user to manually download the ZIP/STL and rerun `commands/convert.sh <downloaded-file>`."
+      "content": "Thingiverse support is best-effort via the direct ZIP endpoint first. If that returns HTML instead of a ZIP, the importer may fall back to `agent-browser` to click the visible STL download button. If both approaches fail, ask the user to manually download the ZIP/STL and rerun `workflow/01A-convert.sh <downloaded-file>`."
     }
   ],
   "doctor": {
@@ -342,5 +343,55 @@
         "objectPath": "internalTools.stlToGcode"
       }
     ]
-  }
+  },
+  "utilityCommands": [
+    {
+      "name": "doctor",
+      "command": "utilities/doctor.sh",
+      "purpose": "Verify workflow dependencies, internal tool root, slicer config, and optional settings."
+    }
+  ],
+  "workflowSteps": [
+    {
+      "step": "0",
+      "title": "Verify dependencies and settings",
+      "command": "utilities/doctor.sh",
+      "description": "Run this before operating the workflow. Fix missing required dependencies before continuing."
+    },
+    {
+      "step": "1A",
+      "title": "Preferred one-shot conversion",
+      "command": "workflow/01A-convert.sh <source>",
+      "description": "Preferred path: import, list, slice, and preview in one command."
+    },
+    {
+      "step": "1B",
+      "title": "Manual import path",
+      "command": "workflow/01B-import.sh <source>",
+      "description": "Alternate path when the user wants import/list/slice separated."
+    },
+    {
+      "step": "2",
+      "title": "List discovered STLs",
+      "command": "workflow/02-list.sh <id>",
+      "description": "List discovered STL files and printability. If multiple printable STLs exist, ask the user which index to use."
+    },
+    {
+      "step": "3",
+      "title": "Slice selected STL",
+      "command": "workflow/03-slice.sh <id> [--stl <index>] [--profile pla-normal]",
+      "description": "Slice the selected STL with an approved profile."
+    },
+    {
+      "step": "4",
+      "title": "Generate/check previews",
+      "command": "workflow/04-preview.sh <id>",
+      "description": "Regenerate/check SVG previews from generated G-code."
+    },
+    {
+      "step": "5",
+      "title": "Publish, clean up, and archive evidence",
+      "description": "LLM-operated judgment step: if an external destination is already available, copy final G-code there, verify it exists, remove/trash processing files, and preserve/archive evidence only."
+    }
+  ]
 }

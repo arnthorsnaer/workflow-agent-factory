@@ -18,7 +18,8 @@ Do not categorize agents as instruction-only or tool-backed. Every workflow agen
 Generated agents use these standard directories:
 
 - `settings/` — committed, non-secret workflow settings/configuration.
-- `commands/` — stable workflow-agent command surface that the agent/user should run.
+- `workflow/` — ordered workflow step commands that map to numbered steps in AGENTS.md.
+- `utilities/` — support/diagnostic/helper commands that are not main workflow steps.
 - `tools/` — internal tool implementations/packages.
 - `tools/<tool>/app/cli/` — internal tool CLI entrypoints.
 - `tools/<tool>/app/lib/` — internal reusable tool code.
@@ -56,7 +57,7 @@ bun run create examples/<agent>.json --out ../<agent-name>
 
 ```bash
 cd ../<agent-name>
-commands/doctor.sh
+utilities/doctor.sh
 ```
 
 7. Compare a generated agent to an existing agent when iterating:
@@ -84,4 +85,4 @@ After successful external publish, cleanup should remove/trash processing files 
 ## Current example specs
 
 - `examples/video-fetcher-agent.json` — external processing in `~/Downloads/incoming/`, local ignored evidence only.
-- `examples/stl-to-gcode-agent.json` — internal `projects/<id>/todo|in-process|done` processing, top-level command wrappers under `commands/`, internal tooling under `tools/stl-to-gcode/`, root `settings.json`, and committed PrusaSlicer config under `tools/stl-to-gcode/tool-config/prusa-slicer`.
+- `examples/stl-to-gcode-agent.json` — internal `projects/<id>/todo|in-process|done` processing, numbered workflow wrappers under `workflow/`, helper commands under `utilities/`, internal tooling under `tools/stl-to-gcode/`, root `settings.json`, and committed PrusaSlicer config under `tools/stl-to-gcode/tool-config/prusa-slicer`.

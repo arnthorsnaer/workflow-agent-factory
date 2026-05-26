@@ -57,8 +57,9 @@ Each spec must declare:
 
 ```text
 settings.json          root committed non-secret workflow settings
-commands/              stable workflow-agent command surface
-commands/doctor.sh     workflow-agent dependency check
+workflow/              ordered workflow step commands that map to AGENTS.md step numbers
+utilities/             support/diagnostic/helper commands
+utilities/doctor.sh    workflow-agent dependency check
 tools/                 internal tool implementations/packages
 tools/<tool>/app/cli/  internal tool CLI entrypoints
 tools/<tool>/app/lib/  internal reusable tool code

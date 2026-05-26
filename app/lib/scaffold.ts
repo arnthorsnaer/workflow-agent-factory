@@ -58,7 +58,7 @@ export async function createAgent(spec: WorkflowAgentSpec, options: { outDir: st
   };
 
   await writeText(path.join(out, '.factory', 'workflow-agent.generated.json'), `${JSON.stringify(generatedManifest, null, 2)}\n`);
-  await writeText(path.join(out, 'commands', 'doctor.sh'), renderDoctor(spec));
+  await writeText(path.join(out, 'utilities', 'doctor.sh'), renderDoctor(spec));
 
   async function chmodShellScripts(dir: string): Promise<void> {
     const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
@@ -68,5 +68,6 @@ export async function createAgent(spec: WorkflowAgentSpec, options: { outDir: st
       else if (entry.isFile() && entry.name.endsWith('.sh')) await fs.chmod(full, 0o755);
     }
   }
-  await chmodShellScripts(path.join(out, 'commands'));
+  await chmodShellScripts(path.join(out, 'workflow'));
+  await chmodShellScripts(path.join(out, 'utilities'));
 }
