@@ -1,4 +1,4 @@
-# workflow-agent-factory
+# workflow-factory
 
 Generate workflow-agent repositories for repeatable LLM-operated workflows.
 

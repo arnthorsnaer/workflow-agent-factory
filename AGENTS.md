@@ -1,4 +1,4 @@
-# workflow-agent-factory — Agent Operating Guide
+# workflow-factory — Agent Operating Guide
 
 This repository creates workflow-agent directories: repeatable LLM-operated workflows with explicit dependencies, tools, processing rules, evidence, cleanup, git hygiene, settings, and optional internal tooling.
 
